@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const pdfBuffer = await renderHtmlToPdf(html, {
       format: "A4",
       printBackground: true,
-      margin: { top: "15mm", bottom: "15mm", left: "16mm", right: "16mm" },
+      margin: { top: "8mm", bottom: "15mm", left: "16mm", right: "16mm" },
     });
 
     const filename = buildFilename(worksheet);

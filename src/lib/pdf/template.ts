@@ -177,7 +177,7 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
     /* ===== A4 page setup ===== */
     @page {
       size: A4 portrait;
-      margin: 15mm 16mm 15mm 16mm;
+      margin: 8mm 16mm 15mm 16mm;
     }
 
     * { box-sizing: border-box; }
@@ -206,7 +206,7 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
     .ws-header-img-wrap {
       width: 100%;
       text-align: center;
-      margin-bottom: 2.5mm;
+      margin-bottom: 1.5mm;
     }
     .school-header-img {
       max-width: 100%;
@@ -292,8 +292,9 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       gap: 2mm;
       align-items: baseline;
       font-weight: 600;
+      font-size: 10pt;
       color: #111827;
-      margin-bottom: 2mm;
+      margin-bottom: 1.5mm;
     }
     .q-num {
       flex: 0 0 auto;
@@ -302,17 +303,20 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       color: #1e3a5f;
     }
     .q-body { flex: 1 1 auto; }
+    /* Options laid out in a 2-column grid (A|B on row 1, C|D on row 2)
+       with equal spacing between the two columns. */
     .opts {
       padding-left: 8mm;
-      display: flex;
-      flex-direction: column;
-      gap: 1.2mm;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 10mm;
+      row-gap: 1mm;
     }
     .opt {
       display: flex;
       gap: 2mm;
       align-items: baseline;
-      font-size: 11pt;
+      font-size: 10pt;
       color: #1f2937;
     }
     .opt-label {
