@@ -44,7 +44,7 @@ export function WorksheetApp() {
       {/* ===== Left: controls (visible on desktop always; on mobile only in "edit" tab) ===== */}
       <div
         className={cn(
-          "space-y-4",
+          "space-y-3 sm:space-y-4",
           mobileView === "preview" && "hidden lg:block",
         )}
       >
@@ -85,71 +85,78 @@ export function WorksheetApp() {
         <WorksheetPreview />
       </div>
 
-      {/* ===== Mobile bottom bar: Edit/Preview tabs + Generate PDF ===== */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden">
-        {/* Generate button row (only when questions exist) */}
-        {canGenerate && (
-          <div className="px-3 pt-2.5">
-            <Button
+      {/* ===== Mobile bottom bar: compact single row (Generate + tabs) =====
+          Layout: [ Generate PDF button (flex-1) ] [ Edit | Preview ]
+          This avoids the double-stack that wasted vertical space and keeps
+          the primary action always visible. Respects the iOS safe-area inset. */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 shadow-[0_-2px_12px_rgba(15,23,42,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="flex items-stretch gap-2 p-2">
+          {/* Generate PDF — primary action, takes most of the width */}
+          <Button
+            type="button"
+            onClick={generate}
+            disabled={!canGenerate || isGenerating}
+            className="h-12 flex-1 gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                Generate PDF
+              </>
+            )}
+          </Button>
+
+          {/* Tab switcher — compact segmented control */}
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-muted p-0.5">
+            <button
               type="button"
-              onClick={generate}
-              disabled={isGenerating}
-              className="h-11 w-full bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate PDF
-                </>
+              onClick={() => setMobileView("edit")}
+              aria-pressed={mobileView === "edit"}
+              className={cn(
+                "flex h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors",
+                mobileView === "edit"
+                  ? "bg-background text-primary shadow-sm"
+                  : "text-muted-foreground",
               )}
-            </Button>
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              Edit
+              {questions.length > 0 && (
+                <span
+                  className={cn(
+                    "ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold leading-none",
+                    mobileView === "edit"
+                      ? "bg-primary/10 text-primary"
+                      : "bg-background text-muted-foreground",
+                  )}
+                >
+                  {questions.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView("preview")}
+              aria-pressed={mobileView === "preview"}
+              className={cn(
+                "flex h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors",
+                mobileView === "preview"
+                  ? "bg-background text-primary shadow-sm"
+                  : "text-muted-foreground",
+              )}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              Preview
+            </button>
           </div>
-        )}
-        {/* Tab bar */}
-        <div className="grid grid-cols-2 gap-1 p-2">
-          <button
-            type="button"
-            onClick={() => setMobileView("edit")}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
-              mobileView === "edit"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <PencilLine className="h-4 w-4" />
-            Edit
-            {questions.length > 0 && (
-              <span
-                className={cn(
-                  "rounded px-1 text-[10px]",
-                  mobileView === "edit"
-                    ? "bg-primary-foreground/20"
-                    : "bg-muted",
-                )}
-              >
-                {questions.length}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileView("preview")}
-            className={cn(
-              "flex h-10 items-center justify-center gap-1.5 rounded-lg text-sm font-medium transition-colors",
-              mobileView === "preview"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            <Eye className="h-4 w-4" />
-            Preview
-          </button>
         </div>
       </div>
     </div>

@@ -78,19 +78,28 @@ export function WorksheetPreview() {
 
   // After the iframe loads, measure its content height to size the wrapper,
   // and estimate the page count from A4 height (1123px at 96dpi).
+  // A short retry covers cases where the content isn't laid out yet on the
+  // first load event (e.g. when switching from a hidden tab).
   const handleLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    try {
-      const doc = iframe.contentDocument;
-      if (!doc) return;
-      const height = doc.body.scrollHeight;
-      iframe.style.height = `${height}px`;
-      const A4_HEIGHT_PX = 1123;
-      setPageCount(Math.max(1, Math.ceil(height / A4_HEIGHT_PX)));
-    } catch {
-      /* cross-origin — ignore */
-    }
+    const measure = (retries = 5) => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        const height = doc.body.scrollHeight;
+        if (height > 0) {
+          iframe.style.height = `${height}px`;
+          const A4_HEIGHT_PX = 1123;
+          setPageCount(Math.max(1, Math.ceil(height / A4_HEIGHT_PX)));
+        } else if (retries > 0) {
+          setTimeout(() => measure(retries - 1), 100);
+        }
+      } catch {
+        /* cross-origin — ignore */
+      }
+    };
+    measure();
   }, []);
 
   const handleGenerate = () => {
@@ -101,11 +110,12 @@ export function WorksheetPreview() {
     <Card className="border-border/60 shadow-sm lg:sticky lg:top-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary sm:text-base">
             <Eye className="h-4 w-4 text-accent" />
-            Live Preview
+            <span className="hidden sm:inline">Live Preview</span>
+            <span className="sm:hidden">Preview</span>
             <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
-              A4 · {pageCount} page{pageCount === 1 ? "" : "s"}
+              A4 · {pageCount}p
             </span>
           </CardTitle>
         </div>
@@ -113,7 +123,7 @@ export function WorksheetPreview() {
       <CardContent>
         <div
           ref={containerRef}
-          className="scroll-thin max-h-[calc(100vh-280px)] overflow-y-auto rounded-lg bg-muted/40 p-2 sm:p-3 lg:max-h-[calc(100vh-220px)]"
+          className="scroll-thin max-h-[calc(100vh-220px)] overflow-y-auto rounded-lg bg-muted/40 p-2 sm:p-3 lg:max-h-[calc(100vh-200px)]"
         >
           <div
             style={{
