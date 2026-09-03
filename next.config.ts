@@ -6,8 +6,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  // Playwright ships native binaries; keep it external so Next does not bundle it.
-  serverExternalPackages: ["playwright", "sharp"],
+  // Playwright/Puppeteer/Sparticuz/Sharp ship native binaries; keep them
+  // external so Next.js does not try to bundle them (which breaks the build).
+  serverExternalPackages: [
+    "playwright",
+    "puppeteer-core",
+    "@sparticuz/chromium",
+    "sharp",
+  ],
   allowedDevOrigins: ["*.space-z.ai"],
 };
 
