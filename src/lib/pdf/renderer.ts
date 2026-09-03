@@ -8,8 +8,12 @@
 //   limit). Each invocation launches a fresh browser — this is the standard
 //   serverless pattern.
 
+import path from "node:path";
+import fs from "node:fs";
+import { createRequire } from "node:module";
 import type { Browser as PuppeteerBrowser } from "puppeteer-core";
 
+const require = createRequire(import.meta.url);
 const isVercel = !!process.env.VERCEL;
 
 export interface RenderOptions {
@@ -51,6 +55,46 @@ async function getPlaywrightBrowser() {
 }
 
 // ---- Puppeteer path (Vercel serverless) ----------------------------------
+
+/**
+ * Resolve the @sparticuz/chromium `bin` directory reliably across bundlers
+ * and Vercel's serverless runtime.
+ *
+ * The package ships the Chromium binary as brotli-compressed files inside its
+ * `bin/` folder. Its default `executablePath()` uses `import.meta.url` to find
+ * `bin/`, but Vercel's function bundler relocates files and that resolution
+ * fails at runtime with:
+ *   "The input directory .../bin does not exist"
+ *
+ * We resolve the path explicitly via Node's module resolution (which follows
+ * the actual installed location) and fall back to a couple of common Vercel
+ * layouts. Returns the path to pass to `chromium.executablePath(input)`.
+ */
+function resolveSparticuzBinPath(): string {
+  // Strategy 1: resolve via the package.json location.
+  try {
+    const pkgJsonPath = require.resolve("@sparticuz/chromium/package.json");
+    const binDir = path.join(path.dirname(pkgJsonPath), "bin");
+    if (fs.existsSync(binDir)) return binDir;
+  } catch {
+    /* ignore */
+  }
+
+  // Strategy 2: common Vercel serverless layout (/var/task/node_modules/...).
+  const candidates = [
+    "/var/task/node_modules/@sparticuz/chromium/bin",
+    "/var/task/nodejs/node_modules/@sparticuz/chromium/bin",
+    path.join(process.cwd(), "node_modules/@sparticuz/chromium/bin"),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+
+  // Strategy 3: let @sparticuz/chromium use its default resolution (will throw
+  // a helpful error if nothing is found).
+  return "";
+}
+
 async function getPuppeteerBrowser(): Promise<PuppeteerBrowser> {
   const puppeteer = await import("puppeteer-core");
   // @sparticuz/chromium uses a default export (the Chromium class). The
@@ -61,7 +105,40 @@ async function getPuppeteerBrowser(): Promise<PuppeteerBrowser> {
     executablePath: (input?: string) => Promise<string>;
     args: string[];
   };
-  const executablePath = await chromium.executablePath();
+
+  // Pass the explicit bin path so Vercel's relocated bundle layout doesn't
+  // break the default import.meta.url-based resolution. If the bin dir is
+  // missing entirely (Vercel sometimes strips the 64MB chromium.br), fall
+  // back to downloading the binary from the official Sparticuz CDN release.
+  const binPath = resolveSparticuzBinPath();
+  let executablePath: string;
+  try {
+    executablePath = await chromium.executablePath(binPath || undefined);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("does not exist")) {
+      // Fallback: download the matching chromium.br from the Sparticuz
+      // releases CDN. The version must match the installed @sparticuz/chromium
+      // version; we read it from the package.json at runtime.
+      let version = "121";
+      try {
+        const pkgJsonPath = require.resolve("@sparticuz/chromium/package.json");
+        const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+        version = pkg.version;
+      } catch {
+        /* use default */
+      }
+      const downloadUrl = `https://github.com/Sparticuz/chromium/releases/download/v${version}/chromium-v${version}-pack.tar`;
+      console.error(
+        "[pdf] bin dir missing, downloading from CDN:",
+        downloadUrl,
+      );
+      executablePath = await chromium.executablePath(downloadUrl);
+    } else {
+      throw err;
+    }
+  }
+
   // `chromium.args` includes the flags needed for serverless (single-process,
   // no sandbox, etc.). We also force a headless shell.
   const browser = await puppeteer.launch({

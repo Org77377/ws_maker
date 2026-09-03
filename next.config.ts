@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // NOTE: "standalone" output is intentionally DISABLED for Vercel. The
+  // standalone tracing excludes @sparticuz/chromium's large brotli binary
+  // files (bin/*.br), causing "bin does not exist" errors at runtime.
+  // Vercel's default builder includes node_modules correctly.
+  // output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
