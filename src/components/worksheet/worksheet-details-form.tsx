@@ -13,11 +13,15 @@ export function WorksheetDetailsForm() {
     subject,
     chapterNumber,
     chapterName,
+    section,
+    rollNo,
     schoolHeaderImage,
     setClassName,
     setSubject,
     setChapterNumber,
     setChapterName,
+    setSection,
+    setRollNo,
     setSchoolHeaderImage,
   } = useWorksheetStore();
 
@@ -30,7 +34,9 @@ export function WorksheetDetailsForm() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+        {/* Row 1 of the worksheet header: Class / Section / Roll No (Name is a
+            handwriting blank, so it is not a form field). */}
+        <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="ws-class" className="text-xs font-medium text-muted-foreground">
               Class
@@ -44,6 +50,33 @@ export function WorksheetDetailsForm() {
             />
           </div>
           <div className="space-y-1.5">
+            <Label htmlFor="ws-section" className="text-xs font-medium text-muted-foreground">
+              Section
+            </Label>
+            <Input
+              id="ws-section"
+              value={section}
+              onChange={(e) => setSection(e.target.value)}
+              placeholder="e.g. A"
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-roll" className="text-xs font-medium text-muted-foreground">
+              Roll No
+            </Label>
+            <Input
+              id="ws-roll"
+              value={rollNo}
+              onChange={(e) => setRollNo(e.target.value)}
+              placeholder="blank → underline"
+              className="h-10"
+            />
+          </div>
+        </div>
+        {/* Row 2 of the worksheet header: Subject / Chapter */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
             <Label htmlFor="ws-subject" className="text-xs font-medium text-muted-foreground">
               Subject
             </Label>
@@ -51,22 +84,7 @@ export function WorksheetDetailsForm() {
               id="ws-subject"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Computer"
-              className="h-10"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="ws-chap-no" className="text-xs font-medium text-muted-foreground">
-              Chapter No.
-            </Label>
-            <Input
-              id="ws-chap-no"
-              value={chapterNumber}
-              onChange={(e) => setChapterNumber(e.target.value)}
-              placeholder="e.g. 4"
-              inputMode="numeric"
+              placeholder="e.g. Computer Science"
               className="h-10"
             />
           </div>
@@ -79,6 +97,22 @@ export function WorksheetDetailsForm() {
               value={chapterName}
               onChange={(e) => setChapterName(e.target.value)}
               placeholder="e.g. Introduction to Krita"
+              className="h-10"
+            />
+          </div>
+        </div>
+        {/* Chapter number drives the "MCQs – Chapter N" heading. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="ws-chap-no" className="text-xs font-medium text-muted-foreground">
+              Chapter No. <span className="font-normal text-muted-foreground/70">(for MCQs heading)</span>
+            </Label>
+            <Input
+              id="ws-chap-no"
+              value={chapterNumber}
+              onChange={(e) => setChapterNumber(e.target.value)}
+              placeholder="e.g. 4"
+              inputMode="numeric"
               className="h-10"
             />
           </div>

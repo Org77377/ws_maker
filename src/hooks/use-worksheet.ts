@@ -23,6 +23,8 @@ interface WorksheetState {
   subject: string;
   chapterNumber: string;
   chapterName: string;
+  section: string;
+  rollNo: string;
   schoolHeaderImage: string;
   answerMode: AnswerMode;
   // UI state
@@ -37,6 +39,8 @@ interface WorksheetState {
   setSubject: (v: string) => void;
   setChapterNumber: (v: string) => void;
   setChapterName: (v: string) => void;
+  setSection: (v: string) => void;
+  setRollNo: (v: string) => void;
   setSchoolHeaderImage: (v: string) => void;
   setAnswerMode: (m: AnswerMode) => void;
 
@@ -97,6 +101,8 @@ const DEFAULTS = {
   subject: "",
   chapterNumber: "",
   chapterName: "",
+  section: "",
+  rollNo: "",
   schoolHeaderImage: DEFAULT_HEADER_IMAGE,
   answerMode: "none" as AnswerMode,
   hasParsed: false,
@@ -120,6 +126,8 @@ export const useWorksheetStore = create<WorksheetState>()(
       setSubject: (v) => set({ subject: v }),
       setChapterNumber: (v) => set({ chapterNumber: v }),
       setChapterName: (v) => set({ chapterName: v }),
+      setSection: (v) => set({ section: v }),
+      setRollNo: (v) => set({ rollNo: v }),
       setSchoolHeaderImage: (v) => set({ schoolHeaderImage: v }),
       setAnswerMode: (m) => set({ answerMode: m }),
 
@@ -253,9 +261,11 @@ export const useWorksheetStore = create<WorksheetState>()(
         set({
           rawInput: SAMPLE_INPUT,
           className: "VII",
-          subject: "Computer",
+          subject: "Computer Science",
           chapterNumber: "4",
           chapterName: "Introduction to Krita",
+          section: "",
+          rollNo: "",
           answerMode: "none",
         }),
 
@@ -273,6 +283,8 @@ export const useWorksheetStore = create<WorksheetState>()(
           subject: s.subject,
           chapterNumber: s.chapterNumber,
           chapterName: s.chapterName,
+          section: s.section,
+          rollNo: s.rollNo,
           answerMode: s.answerMode,
           questions: s.questions,
         };
@@ -288,6 +300,8 @@ export const useWorksheetStore = create<WorksheetState>()(
         subject: s.subject,
         chapterNumber: s.chapterNumber,
         chapterName: s.chapterName,
+        section: s.section,
+        rollNo: s.rollNo,
         schoolHeaderImage: s.schoolHeaderImage,
         answerMode: s.answerMode,
         hasParsed: s.hasParsed,

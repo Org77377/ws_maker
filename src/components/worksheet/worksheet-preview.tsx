@@ -35,6 +35,8 @@ export function WorksheetPreview() {
       subject: s.subject,
       chapterNumber: s.chapterNumber,
       chapterName: s.chapterName,
+      section: s.section,
+      rollNo: s.rollNo,
       answerMode: s.answerMode,
       questions: s.questions,
     })),

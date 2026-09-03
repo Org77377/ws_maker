@@ -88,10 +88,28 @@ function headerSection(
     ? `<img class="school-header-img" src="${escapeHtml(headerImage)}" alt="School Header" />`
     : `<div class="school-header-placeholder">School Header</div>`;
 
-  const classLine = escapeHtml(worksheet.className || "—");
-  const subjectLine = escapeHtml(worksheet.subject || "—");
-  const chapNo = escapeHtml(worksheet.chapterNumber || "—");
-  const chapName = escapeHtml(worksheet.chapterName || "—");
+  // Reference format (from uploaded sample):
+  //   Row 1: Name : ______   Class: <v>   Section: ______   Rollno: ______
+  //   Row 2: Subject: <v>                    Chapter: <name>
+  //   Then a thin full-width black rule.
+  //   Then a bold left-aligned heading "MCQs – Chapter <n>".
+  const className = escapeHtml(worksheet.className || "");
+  const subject = escapeHtml(worksheet.subject || "");
+  const chapterName = escapeHtml(worksheet.chapterName || "");
+  const chapterNo = escapeHtml(worksheet.chapterNumber || "");
+  const section = escapeHtml(worksheet.section || "");
+  const rollNo = escapeHtml(worksheet.rollNo || "");
+
+  // "MCQs – Chapter 4" — only include the number when present.
+  const mcqHeading = chapterNo
+    ? `MCQs – Chapter ${chapterNo}`
+    : "MCQs";
+
+  // Underline fill for handwriting fields (Name, Section, Rollno).
+  // Class shows its value inline (no underline) per the reference.
+  const nameFill = '<span class="ws-fill"></span>';
+  const sectionFill = worksheet.section ? "" : '<span class="ws-fill ws-fill--sm"></span>';
+  const rollnoFill = worksheet.rollNo ? escapeHtml(worksheet.rollNo) : '<span class="ws-fill ws-fill--sm"></span>';
 
   return `
     <header class="ws-header">
@@ -100,26 +118,35 @@ function headerSection(
       </div>
       <div class="ws-info">
         <div class="ws-info-row">
-          <div class="ws-info-cell">
-            <span class="ws-info-label">CLASS:</span>
-            <span class="ws-info-value">${classLine}</span>
+          <div class="ws-field">
+            <span class="ws-label">Name :</span>${nameFill}
           </div>
-          <div class="ws-info-cell">
-            <span class="ws-info-label">SUBJECT:</span>
-            <span class="ws-info-value">${subjectLine}</span>
+          <div class="ws-field ws-field--tight">
+            <span class="ws-label">Class:</span>
+            <span class="ws-value">${className}</span>
+          </div>
+          <div class="ws-field ws-field--tight">
+            <span class="ws-label">Section:</span>
+            ${section || sectionFill}
+          </div>
+          <div class="ws-field ws-field--tight">
+            <span class="ws-label">Rollno:</span>
+            ${rollnoFill}
           </div>
         </div>
         <div class="ws-info-row">
-          <div class="ws-info-cell">
-            <span class="ws-info-label">CHAPTER NO.:</span>
-            <span class="ws-info-value">${chapNo}</span>
+          <div class="ws-field">
+            <span class="ws-label">Subject:</span>
+            <span class="ws-value">${subject}</span>
           </div>
-          <div class="ws-info-cell">
-            <span class="ws-info-label">CHAPTER NAME:</span>
-            <span class="ws-info-value">${chapName}</span>
+          <div class="ws-field ws-field--right">
+            <span class="ws-label">Chapter:</span>
+            <span class="ws-value">${chapterName}</span>
           </div>
         </div>
       </div>
+      <hr class="ws-rule" />
+      <h1 class="ws-heading">${mcqHeading}</h1>
     </header>`;
 }
 
@@ -166,13 +193,15 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ===== First-page header (appears once at the top of the flow) ===== */
+    /* ===== First-page header (appears once at the top of the flow) =====
+       Layout matches the uploaded school worksheet reference:
+       [banner image] → [Name/Class/Section/Rollno · Subject/Chapter] → [thin rule] → [MCQs – Chapter N] */
     .ws-header {
       break-after: avoid;
       page-break-after: avoid;
       break-inside: avoid;
       page-break-inside: avoid;
-      margin-bottom: 4mm;
+      margin-bottom: 3mm;
     }
     .ws-header-img-wrap {
       width: 100%;
@@ -195,36 +224,63 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       font-size: 12pt;
       letter-spacing: 0.1em;
     }
-    /* Info block: NO line above (clean under the header image),
-       a single thick rule BELOW matching the sample format. */
+    /* Info block: clean (no surrounding box, no line above). A single thin
+       full-width black rule sits BELOW the block via .ws-rule. */
     .ws-info {
-      border-bottom: 2.5px solid #111827;
-      padding: 2mm 0 2.5mm 0;
+      padding: 1.5mm 0 2mm 0;
     }
     .ws-info-row {
       display: flex;
+      align-items: baseline;
       gap: 6mm;
-      margin-bottom: 1.2mm;
+      margin-bottom: 1.5mm;
     }
     .ws-info-row:last-child { margin-bottom: 0; }
-    .ws-info-cell {
-      flex: 1;
+    .ws-field {
+      display: flex;
+      align-items: baseline;
+      gap: 1.5mm;
       font-size: 11pt;
-      letter-spacing: 0.02em;
+      color: #111827;
     }
-    .ws-info-label {
+    /* "tight" fields (Class/Section/Rollno) sit closer together */
+    .ws-field--tight { gap: 1mm; }
+    .ws-field--right { margin-left: auto; }
+    .ws-label {
       font-weight: 700;
-      color: #1e3a5f;
-      margin-right: 1.5mm;
+      color: #111827;
     }
-    .ws-info-value {
-      font-weight: 500;
-      color: #1f2937;
+    .ws-value {
+      font-weight: 400;
+      color: #111827;
+    }
+    /* Underline fill for handwriting fields (Name / Section / Rollno) */
+    .ws-fill {
+      display: inline-block;
+      flex: 1 1 auto;
+      min-width: 50mm;
+      border-bottom: 1px solid #111827;
+      height: 1px;
+      align-self: flex-end;
+      margin-bottom: 3px;
+    }
+    .ws-fill--sm { min-width: 22mm; }
+    .ws-rule {
+      border: 0;
+      border-top: 1px solid #111827;
+      margin: 0 0 2.5mm 0;
+    }
+    .ws-heading {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 1mm 0;
+      text-align: left;
     }
 
-    /* ===== Questions (start immediately after the header rule) ===== */
+    /* ===== Questions (start immediately after the MCQs heading) ===== */
     .questions {
-      margin-top: 4mm;
+      margin-top: 3mm;
     }
     .question {
       break-inside: avoid;

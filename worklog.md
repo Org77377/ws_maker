@@ -104,3 +104,66 @@ Stage Summary:
 - The worksheet now replicates the uploaded sample format: clean banner (no surrounding lines), info block, single thick separator, questions immediately — no WORKSHEET heading.
 - Developer credits appear in both the app header and footer.
 - Banner image's built-in bottom rule is automatically trimmed server-side for both preview and PDF.
+
+---
+Task ID: 12
+Agent: orchestrator
+Task: Restructure worksheet header to match new uploaded reference exactly
+
+User requirements:
+1. Refer to uploaded header image (pasted_image_1788415014130.png) as the reference
+2. Remove Chapter Number from the header info block
+3. Add Name, Class, Section, Roll No in the first row
+4. Below it: Subject and Chapter (just "Chapter:", no "Chapter No")
+5. Same font style as the uploaded reference (sans-serif, bold labels)
+6. Header same as uploaded: showing "MCQs – Chapter <number>" heading
+7. Do NOT change the header image
+
+Work Log:
+- Analyzed new reference image with VLM → identified exact layout:
+  - Row 1: "Name :" (with handwriting underline) | "Class: <v>" | "Section:" (underline) | "Rollno:" (underline)
+  - Row 2: "Subject: <v>" (left) | "Chapter: <name>" (right) — NO "Chapter No" label
+  - Single thin (1px) black horizontal rule below info block
+  - Bold left-aligned heading "MCQs – Chapter <n>" below the rule
+  - Sans-serif font, bold labels, regular values
+- Added `section` and `rollNo` fields to Worksheet type (types.ts) + createEmptyWorksheet
+- Updated Zustand store (use-worksheet.ts): added section/rollNo state, setSection/setRollNo actions, included in DEFAULTS/sample/partialize/getWorksheet
+- Updated PDF template (template.ts headerSection):
+  - Rewrote info block HTML to 2-row layout matching reference
+  - Row 1: Name (with .ws-fill underline), Class (value), Section (underline if empty), Rollno (value or underline)
+  - Row 2: Subject (left), Chapter (right) — "Chapter:" label + chapter name only
+  - Added <hr class="ws-rule"> (1px solid black) below info block
+  - Added <h1 class="ws-heading"> showing "MCQs – Chapter <n>" (or just "MCQs" if no number)
+  - Removed "CHAPTER NO." label from info block entirely
+- Rewrote header CSS:
+  - .ws-info: clean (no border, no box), padding only
+  - .ws-field: flex baseline, 11pt sans-serif
+  - .ws-label: bold #111827, .ws-value: regular #111827
+  - .ws-fill: handwriting underline (border-bottom, min-width 50mm, 22mm for small)
+  - .ws-rule: 1px solid #111827 (thin, not thick)
+  - .ws-heading: 13pt bold left-aligned
+- Updated WorksheetDetailsForm: 3-col row (Class/Section/Roll No) + 2-col row (Subject/Chapter Name) + Chapter No field (annotated "for MCQs heading")
+- Updated WorksheetPreview useShallow selector to include section/rollNo
+- Updated sample: subject="Computer Science" (matches reference style)
+
+Verification Results (VLM + Agent Browser):
+- PDF generated (HTTP 200, 214KB)
+- VLM side-by-side comparison with reference: ALL 7 points MATCH
+  1. Banner image kept identical ✓
+  2. Row 1: Name/Class/Section/Rollno with underlines ✓
+  3. Row 2: Subject (left) / Chapter (right), no Chapter No label ✓
+  4. Thin black line below info block ✓
+  5. Bold left-aligned "MCQs – Chapter 4" heading ✓
+  6. Chapter No removed from info block (only in MCQs heading) ✓
+  7. Sans-serif font, bold labels ✓
+  - Overall verdict: "perfect replication of the reference header format"
+- Live preview reflects all changes (verified via DOM text checks)
+- PDF generation through UI: HTTP 200, no errors
+- Multi-page pagination: 40 questions → 9 A4 pages, header only on page 1
+- Lint clean, no runtime errors
+
+Stage Summary:
+- Worksheet header now exactly replicates the uploaded reference format.
+- Info block restructured to Name/Class/Section/Rollno + Subject/Chapter.
+- Chapter Number removed from the visible info block; it now only drives the "MCQs – Chapter N" heading.
+- Header image left unchanged (still auto-trimmed of its built-in bottom line).

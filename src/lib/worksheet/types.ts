@@ -21,6 +21,8 @@ export interface Worksheet {
   subject: string;
   chapterNumber: string;
   chapterName: string;
+  section: string;
+  rollNo: string;
   answerMode: AnswerMode;
   questions: Question[];
 }
@@ -58,6 +60,8 @@ export function createEmptyWorksheet(): Worksheet {
     subject: "",
     chapterNumber: "",
     chapterName: "",
+    section: "",
+    rollNo: "",
     answerMode: "none",
     questions: [],
   };
