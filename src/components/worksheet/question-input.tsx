@@ -66,18 +66,20 @@ A. Ctrl + A *
 B. Ctrl + C
 C. Ctrl + X
 D. Ctrl + V`}
-          className="min-h-[220px] resize-y font-mono text-[13px] leading-relaxed scroll-thin"
+          className="min-h-[200px] resize-y text-base leading-relaxed scroll-thin sm:text-[13px]"
           spellCheck={false}
         />
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px] text-muted-foreground">
-            {rawInput.trim() ? `${rawInput.trim().split(/\n\s*\n/).filter(Boolean).length} block(s) detected` : "Supports 1. / 1) / 1 formats · * marks correct"}
+            {rawInput.trim()
+              ? `${rawInput.trim().split(/\n\s*\n/).filter(Boolean).length} block(s) detected`
+              : "Supports 1. / 1) / 1 formats · * marks correct"}
           </p>
           <Button
             type="button"
             onClick={handleParse}
             disabled={!rawInput.trim()}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-11 bg-primary text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:h-9 sm:text-sm"
           >
             Parse Questions
           </Button>

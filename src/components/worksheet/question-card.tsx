@@ -98,10 +98,10 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       >
         <CardContent className="p-0">
           {/* Header row */}
-          <div className="flex items-center gap-1.5 p-2.5">
+          <div className="flex items-center gap-1.5 p-2 sm:p-2.5">
             <button
               type="button"
-              className="cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+              className="flex h-9 w-7 cursor-grab touch-none items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing sm:h-7"
               aria-label="Drag to reorder"
               {...attributes}
               {...listeners}
@@ -111,7 +111,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
             <Badge
               variant="secondary"
-              className="h-6 min-w-[1.75rem] justify-center bg-primary text-primary-foreground"
+              className="h-6 min-w-[1.75rem] justify-center bg-primary text-primary-foreground sm:h-6"
             >
               {question.number}
             </Badge>
@@ -119,7 +119,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="flex flex-1 items-center gap-2 truncate text-left"
+              className="flex flex-1 items-center gap-2 truncate py-1 text-left"
             >
               <span
                 className={cn(
@@ -129,7 +129,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                     : "italic text-muted-foreground",
                 )}
               >
-                {question.text || "Empty question — click to edit"}
+                {question.text || "Empty question — tap to edit"}
               </span>
               {correctLabel && (
                 <Badge
@@ -148,7 +148,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="rounded p-1 text-muted-foreground hover:bg-muted"
+              className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-7 sm:w-7"
               aria-label={expanded ? "Collapse" : "Expand"}
             >
               <ChevronDown
@@ -164,7 +164,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-9 w-9 sm:h-7 sm:w-7"
                   aria-label="Question actions"
                 >
                   <MoreVertical className="h-4 w-4" />
@@ -212,7 +212,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                   value={question.text}
                   onChange={(e) => updateQuestionText(question.id, e.target.value)}
                   placeholder="Enter the question..."
-                  className="min-h-[60px] resize-y text-sm"
+                  className="min-h-[64px] resize-y text-base sm:text-sm"
                 />
               </div>
 
@@ -222,7 +222,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                     Options
                   </label>
                   <span className="text-[11px] text-muted-foreground">
-                    Select the correct answer
+                    Tap the letter to mark correct
                   </span>
                 </div>
                 <div className="space-y-1.5">
@@ -236,14 +236,14 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                         onClick={() => setCorrectOption(question.id, opt.label)}
                         title="Mark as correct answer"
                         className={cn(
-                          "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors",
+                          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold transition-colors sm:h-8 sm:w-8 sm:text-xs",
                           opt.correct
                             ? "border-accent bg-accent text-accent-foreground"
                             : "border-border text-muted-foreground hover:border-accent/50",
                         )}
                       >
                         {opt.correct ? (
-                          <Check className="h-3.5 w-3.5" />
+                          <Check className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         ) : (
                           opt.label
                         )}
@@ -254,16 +254,16 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                           updateOptionText(question.id, opt.label, e.target.value)
                         }
                         placeholder={`Option ${opt.label} text`}
-                        className="h-8 border-transparent bg-background text-sm"
+                        className="h-10 border-transparent bg-background text-base sm:h-8 sm:text-sm"
                       />
                       {question.options.length > 2 && (
                         <button
                           type="button"
                           onClick={() => removeOption(question.id, opt.label)}
-                          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:h-7 sm:w-7"
                           aria-label={`Remove option ${opt.label}`}
                         >
-                          <X className="h-3.5 w-3.5" />
+                          <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                         </button>
                       )}
                     </div>
@@ -275,7 +275,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => addOption(question.id)}
-                    className="h-7 text-xs text-muted-foreground"
+                    className="h-9 text-xs text-muted-foreground sm:h-7"
                   >
                     <Plus className="mr-1 h-3.5 w-3.5" />
                     Add option

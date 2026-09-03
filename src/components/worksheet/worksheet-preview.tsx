@@ -98,7 +98,7 @@ export function WorksheetPreview() {
   };
 
   return (
-    <Card className="sticky top-4 border-border/60 shadow-sm">
+    <Card className="border-border/60 shadow-sm lg:sticky lg:top-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
@@ -113,7 +113,7 @@ export function WorksheetPreview() {
       <CardContent>
         <div
           ref={containerRef}
-          className="scroll-thin max-h-[calc(100vh-220px)] overflow-y-auto rounded-lg bg-muted/40 p-3"
+          className="scroll-thin max-h-[calc(100vh-280px)] overflow-y-auto rounded-lg bg-muted/40 p-2 sm:p-3 lg:max-h-[calc(100vh-220px)]"
         >
           <div
             style={{
@@ -141,11 +141,12 @@ export function WorksheetPreview() {
           </div>
         </div>
 
+        {/* Generate button — desktop only (mobile uses the bottom tab bar) */}
         <Button
           type="button"
           onClick={handleGenerate}
           disabled={isGenerating || worksheet.questions.length === 0}
-          className="mt-4 w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          className="mt-4 hidden h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 lg:flex"
         >
           {isGenerating ? (
             <>
