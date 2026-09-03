@@ -50,10 +50,10 @@ export function QuestionEditor() {
     <Card id="question-editor" className="border-border/60 shadow-sm scroll-mt-4">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold text-primary">
-            <PencilLine className="h-4 w-4 text-accent" />
-            Question Editor
-            <span className="text-sm font-normal text-muted-foreground">
+          <CardTitle className="flex min-w-0 items-center gap-2 text-sm font-semibold text-primary sm:text-base">
+            <PencilLine className="h-4 w-4 shrink-0 text-accent" />
+            <span className="truncate">Question Editor</span>
+            <span className="shrink-0 text-xs font-normal text-muted-foreground">
               ({questions.length})
             </span>
           </CardTitle>
@@ -62,7 +62,7 @@ export function QuestionEditor() {
             size="sm"
             variant="outline"
             onClick={addQuestion}
-            className="h-8"
+            className="h-9 shrink-0 sm:h-8"
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Add
@@ -71,9 +71,9 @@ export function QuestionEditor() {
       </CardHeader>
       <CardContent>
         {questions.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-8 text-center">
+          <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center sm:p-8">
             <p className="text-sm text-muted-foreground">
-              No questions yet. Paste your questions above and click{" "}
+              No questions yet. Paste your questions above and tap{" "}
               <span className="font-medium text-foreground">Parse Questions</span>
               , or add one manually.
             </p>
@@ -88,7 +88,7 @@ export function QuestionEditor() {
               items={orderedIds}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-2.5">
+              <div className="space-y-2 sm:space-y-2.5">
                 {questions.map((q, idx) => (
                   <QuestionCard
                     key={q.id}
