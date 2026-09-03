@@ -53,9 +53,14 @@ async function getPlaywrightBrowser() {
 // ---- Puppeteer path (Vercel serverless) ----------------------------------
 async function getPuppeteerBrowser(): Promise<PuppeteerBrowser> {
   const puppeteer = await import("puppeteer-core");
-  const chromium = await import("@sparticuz/chromium");
-  // The `chromium.executablePath()` returns the path to the extracted binary
-  // inside the Lambda/Vercel function environment.
+  // @sparticuz/chromium uses a default export (the Chromium class). The
+  // `executablePath` static method is async and returns the path to the
+  // extracted Chromium binary inside the Lambda/Vercel function environment.
+  const chromiumModule = await import("@sparticuz/chromium");
+  const chromium = (chromiumModule.default ?? chromiumModule) as {
+    executablePath: (input?: string) => Promise<string>;
+    args: string[];
+  };
   const executablePath = await chromium.executablePath();
   // `chromium.args` includes the flags needed for serverless (single-process,
   // no sandbox, etc.). We also force a headless shell.
