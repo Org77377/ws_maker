@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import {
   AnswerMode,
   createEmptyQuestion,
+  DEFAULT_HEADER_IMAGE,
   makeId,
   Question,
   Worksheet,
@@ -96,7 +97,7 @@ const DEFAULTS = {
   subject: "",
   chapterNumber: "",
   chapterName: "",
-  schoolHeaderImage: "",
+  schoolHeaderImage: DEFAULT_HEADER_IMAGE,
   answerMode: "none" as AnswerMode,
   hasParsed: false,
   isGenerating: false,

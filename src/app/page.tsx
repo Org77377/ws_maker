@@ -20,7 +20,15 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right leading-tight sm:block">
+              <p className="text-[11px] font-medium text-foreground/80">
+                Omkar RG
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Dept. of CS · Sharada Public School
+              </p>
+            </div>
             <span className="rounded-md border border-border bg-muted/50 px-2 py-1 text-[11px] font-medium text-muted-foreground">
               A4 Portrait
             </span>

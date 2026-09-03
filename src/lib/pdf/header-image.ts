@@ -13,8 +13,13 @@
 //   - https://lh3.googleusercontent.com/...
 //   - Any direct image URL
 //
+// After fetching, a built-in bottom black rule (common in school banner
+// graphics) is detected and trimmed so the worksheet has NO line directly
+// below the header image — matching the clean sample format.
+//
 // Falls back gracefully to a provided fallback or undefined.
 
+import sharp from "sharp";
 import { FALLBACK_HEADER_IMAGE } from "../worksheet/types";
 
 const DRIVE_FILE_RE = /drive\.google\.com\/file\/d\/([^/]+)/;
@@ -81,9 +86,93 @@ async function fetchAsBuffer(
 }
 
 /**
+ * Detect and remove a built-in horizontal black rule at the bottom of a banner
+ * image (and any trailing whitespace below it). Returns a cleaned PNG buffer.
+ *
+ * Many school header banners ship with a thin black separator line baked into
+ * the graphic near the bottom edge. The worksheet format requires NO line
+ * directly below the header image, so we trim it server-side.
+ *
+ * Algorithm: scan rows from the bottom up and find the LOWEST row that is a
+ * "line row" (>=40% of its center pixels are dark, luminance < 80). A
+ * full-width horizontal rule produces ~80%+ dark pixels, so 40% reliably
+ * distinguishes it from text/logos. Once found, walk upward over contiguous
+ * line rows to find the top of the rule, then crop everything from there down.
+ * If no line is found, the image is returned unchanged.
+ */
+async function trimBottomLine(buffer: Buffer): Promise<Buffer> {
+  try {
+    const img = sharp(buffer).flatten({ background: "#ffffff" });
+    const meta = await img.metadata();
+    const width = meta.width || 0;
+    const height = meta.height || 0;
+    if (width < 10 || height < 10) return buffer;
+
+    const channels = meta.channels || 3;
+    const raw = await img.raw().toBuffer();
+    const bytesPerRow = width * channels;
+    const xStart = Math.floor(width * 0.2);
+    const xEnd = Math.floor(width * 0.8);
+    const sampleWidth = xEnd - xStart;
+
+    // Returns true if row `y` is a horizontal line (>=40% dark center pixels).
+    const isLineRow = (y: number): boolean => {
+      let dark = 0;
+      for (let x = xStart; x < xEnd; x++) {
+        const idx = y * bytesPerRow + x * channels;
+        const lum = (raw[idx] + raw[idx + 1] + raw[idx + 2]) / 3;
+        if (lum < 80) dark++;
+      }
+      return dark / sampleWidth >= 0.4;
+    };
+
+    // Scan from the bottom up to find the lowest line row.
+    let lowestLine = -1;
+    for (let y = height - 1; y >= 0; y--) {
+      if (isLineRow(y)) {
+        lowestLine = y;
+        break;
+      }
+    }
+
+    if (lowestLine === -1) return buffer; // no line found — keep original
+
+    // Walk upward over contiguous line rows to find the top of the rule.
+    let lineTop = lowestLine;
+    while (lineTop > 0 && isLineRow(lineTop - 1)) lineTop--;
+
+    // Also trim anti-aliased rows directly above the rule (gray pixels that
+    // are not pure-black but still visibly non-white). Walk up while the row
+    // has >5% of pixels with luminance < 230.
+    while (lineTop > 0) {
+      let nonWhite = 0;
+      for (let x = xStart; x < xEnd; x++) {
+        const idx = (lineTop - 1) * bytesPerRow + x * channels;
+        const lum = (raw[idx] + raw[idx + 1] + raw[idx + 2]) / 3;
+        if (lum < 230) nonWhite++;
+      }
+      if (nonWhite / sampleWidth > 0.05) lineTop--;
+      else break;
+    }
+
+    // Crop to keep rows [0, lineTop - 1].
+    const newHeight = Math.max(1, lineTop);
+    const cleaned = await sharp(buffer)
+      .flatten({ background: "#ffffff" })
+      .extract({ left: 0, top: 0, width, height: newHeight })
+      .png()
+      .toBuffer();
+    return cleaned;
+  } catch {
+    return buffer; // on any error, use the original image unchanged
+  }
+}
+
+/**
  * Resolve the header image to an embeddable data URL.
  * Tries the source, then Google Drive variants, then the fallback.
- * Returns null if nothing could be fetched.
+ * The fetched image is cleaned (bottom black rule trimmed) and returned as a
+ * PNG data URL. Returns null if nothing could be fetched.
  */
 export async function resolveHeaderImageDataUrl(
   source: string | undefined,
@@ -97,8 +186,9 @@ export async function resolveHeaderImageDataUrl(
   for (const url of sources) {
     const fetched = await fetchAsBuffer(url);
     if (fetched) {
-      const base64 = fetched.buffer.toString("base64");
-      return `data:${fetched.contentType};base64,${base64}`;
+      const cleaned = await trimBottomLine(fetched.buffer);
+      const base64 = cleaned.toString("base64");
+      return `data:image/png;base64,${base64}`;
     }
   }
   return null;

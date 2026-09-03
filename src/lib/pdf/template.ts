@@ -18,6 +18,10 @@ export interface PdfTemplateInput {
   worksheet: Worksheet;
   /** Resolved header image (data URL or reachable URL). */
   headerImage?: string;
+  /** When true, the banner image's built-in bottom rule is hidden via CSS
+   *  clip-path (used by the live preview, which embeds the raw image URL).
+   *  The PDF path trims the line server-side instead, so this is false there. */
+  previewMode?: boolean;
 }
 
 function escapeHtml(str: string): string {
@@ -110,20 +114,17 @@ function headerSection(
             <span class="ws-info-label">CHAPTER NO.:</span>
             <span class="ws-info-value">${chapNo}</span>
           </div>
-        </div>
-        <div class="ws-info-row">
-          <div class="ws-info-cell ws-info-cell--full">
+          <div class="ws-info-cell">
             <span class="ws-info-label">CHAPTER NAME:</span>
             <span class="ws-info-value">${chapName}</span>
           </div>
         </div>
       </div>
-      <div class="ws-title-bar">WORKSHEET</div>
     </header>`;
 }
 
 export function buildWorksheetHtml(input: PdfTemplateInput): string {
-  const { worksheet, headerImage } = input;
+  const { worksheet, headerImage, previewMode } = input;
   const mode = worksheet.answerMode;
   const questions = worksheet.questions;
 
@@ -171,21 +172,21 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       page-break-after: avoid;
       break-inside: avoid;
       page-break-inside: avoid;
-      margin-bottom: 6mm;
+      margin-bottom: 4mm;
     }
     .ws-header-img-wrap {
       width: 100%;
       text-align: center;
-      margin-bottom: 3mm;
+      margin-bottom: 2.5mm;
     }
     .school-header-img {
       max-width: 100%;
-      max-height: 30mm;
+      max-height: 32mm;
       height: auto;
       object-fit: contain;
     }
     .school-header-placeholder {
-      height: 30mm;
+      height: 32mm;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -194,15 +195,16 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       font-size: 12pt;
       letter-spacing: 0.1em;
     }
+    /* Info block: NO line above (clean under the header image),
+       a single thick rule BELOW matching the sample format. */
     .ws-info {
-      border-top: 1.5px solid #1e3a5f;
-      border-bottom: 1.5px solid #1e3a5f;
-      padding: 3mm 4mm;
+      border-bottom: 2.5px solid #111827;
+      padding: 2mm 0 2.5mm 0;
     }
     .ws-info-row {
       display: flex;
-      gap: 8mm;
-      margin-bottom: 1.5mm;
+      gap: 6mm;
+      margin-bottom: 1.2mm;
     }
     .ws-info-row:last-child { margin-bottom: 0; }
     .ws-info-cell {
@@ -210,32 +212,19 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       font-size: 11pt;
       letter-spacing: 0.02em;
     }
-    .ws-info-cell--full { flex: 1 1 100%; }
     .ws-info-label {
       font-weight: 700;
       color: #1e3a5f;
-      margin-right: 2mm;
+      margin-right: 1.5mm;
     }
     .ws-info-value {
       font-weight: 500;
       color: #1f2937;
-      text-transform: uppercase;
-    }
-    .ws-title-bar {
-      margin-top: 4mm;
-      text-align: center;
-      font-size: 16pt;
-      font-weight: 700;
-      letter-spacing: 0.35em;
-      color: #1e3a5f;
-      padding: 2.5mm 0;
-      border-top: 1px solid #1e3a5f;
-      border-bottom: 1px solid #1e3a5f;
     }
 
-    /* ===== Questions ===== */
+    /* ===== Questions (start immediately after the header rule) ===== */
     .questions {
-      margin-top: 5mm;
+      margin-top: 4mm;
     }
     .question {
       break-inside: avoid;
@@ -308,9 +297,14 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
     }
     .ak-num { font-weight: 700; color: #1e3a5f; margin-right: 1.5mm; }
     .ak-ans { font-weight: 600; }
+    /* Preview-only: hide the banner image's built-in bottom rule (the PDF
+       path trims it server-side via sharp, so this class is not used there). */
+    body.preview-mode .school-header-img {
+      clip-path: inset(0 0 6.5% 0);
+    }
   </style>
 </head>
-<body>
+<body${previewMode ? ' class="preview-mode"' : ''}>
   ${header}
   <section class="questions">
 ${questionHtml}

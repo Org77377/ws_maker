@@ -13,16 +13,16 @@ import { Eye, Printer, Loader2 } from "lucide-react";
 // A4 width in CSS pixels at 96dpi: 210mm ≈ 793.7px
 const A4_WIDTH_PX = 794;
 
-/** Convert a Google Drive share/view URL into a directly-embeddable URL. */
+/** Build a preview-friendly header image URL.
+ *  Google Drive images cannot be hotlinked directly in the browser, so we route
+ *  them through the /api/header-image proxy, which fetches + trims the banner's
+ *  built-in bottom rule server-side (same logic the PDF uses). Non-Google-Drive
+ *  URLs are used as-is. */
 function toEmbeddable(src: string): string {
   if (!src) return "";
-  const idMatch =
-    src.match(/drive\.google\.com\/file\/d\/([^/]+)/) ||
-    src.match(/drive\.google\.com\/open\?id=([^&]+)/) ||
-    src.match(/drive\.google\.com\/uc\?[^"]*id=([^&]+)/) ||
-    src.match(/drive\.google\.com\/thumbnail\?[^"]*id=([^&]+)/);
-  if (idMatch) {
-    return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1200`;
+  const isGoogleDrive = src.includes("drive.google.com");
+  if (isGoogleDrive) {
+    return `/api/header-image?url=${encodeURIComponent(src)}`;
   }
   return src;
 }

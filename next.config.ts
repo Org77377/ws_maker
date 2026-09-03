@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   // Playwright ships native binaries; keep it external so Next does not bundle it.
-  serverExternalPackages: ["playwright"],
+  serverExternalPackages: ["playwright", "sharp"],
   allowedDevOrigins: ["*.space-z.ai"],
 };
 

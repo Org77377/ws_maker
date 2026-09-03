@@ -52,3 +52,55 @@ Stage Summary:
 - Application is fully functional and production-ready. All 23 spec requirements implemented.
 - Architecture is clean/modular: UI (components/worksheet) | parsing (lib/worksheet/parser) | validation (lib/worksheet/validation) | document rendering (lib/pdf/template) | PDF generation (lib/pdf/renderer + /api/generate-pdf).
 - Foundation supports future features (accounts, question bank, AI generation, more question types, themes).
+
+---
+Task ID: 11
+Agent: orchestrator
+Task: Apply user corrections — replicate uploaded sample format
+
+User corrections:
+1. Include developer credits in the app header (not just footer)
+2. Replicate the uploaded sample worksheet format exactly
+3. Remove the "WORKSHEET" heading/title bar
+4. No lines above or below the header image
+5. Keep same as the uploaded image
+
+Work Log:
+- Analyzed uploaded sample (pasted_image_1788413057658.png) with VLM — identified exact layout: banner → info block (no line above) → single thick line below info → questions immediately (no WORKSHEET title)
+- Updated PDF template (src/lib/pdf/template.ts):
+  - Removed the .ws-title-bar "WORKSHEET" heading entirely (HTML + CSS)
+  - Removed border-top on .ws-info (no line between banner and info)
+  - Changed border-bottom to 2.5px solid #111827 (thick black line, matching sample)
+  - Restructured info block to clean 2×2 grid (CLASS/SUBJECT, CHAPTER NO./CHAPTER NAME)
+  - Removed forced uppercase on values (matches sample's natural casing)
+  - Added previewMode support + clip-path CSS (later superseded by proxy approach)
+- Added developer credits to app header bar (src/app/page.tsx): "Omkar RG / Dept. of CS · Sharada Public School" next to the A4 Portrait badge
+- Discovered the school banner image has a BUILT-IN 3px black bottom line (rows 187-189 of 199px image) — this was the "line below the header" the VLM flagged
+- Built server-side image trimmer (src/lib/pdf/header-image.ts trimBottomLine):
+  - Uses sharp to scan rows bottom-up, finds lowest "line row" (>=40% dark center pixels)
+  - Walks up over contiguous line rows + anti-aliased gray rows (>5% pixels <230 luminance)
+  - Crops the line + trailing whitespace, returns clean PNG
+  - Verified: 1200×199 → 1200×186, VLM confirms "NO" line at bottom
+- Created /api/header-image proxy endpoint (src/app/api/header-image/route.ts):
+  - Returns the fetched+trimmed header image as PNG
+  - Solves Google Drive hotlinking restriction in browser/iframe contexts
+  - Preview and PDF now use identical trimmed image
+- Updated preview (worksheet-preview.tsx) to route Google Drive images through /api/header-image proxy
+- Fixed store default: schoolHeaderImage now defaults to DEFAULT_HEADER_IMAGE (was empty string)
+- Added sharp to serverExternalPackages in next.config.ts
+
+Verification Results (VLM + Agent Browser):
+- App header shows credits: "Omkar RG / Dept. of CS · Sharada Public School" ✓
+- PDF: banner image (trimmed, no bottom line) → white gap → info block → thick black line → questions immediately ✓
+- NO "WORKSHEET" title bar ✓
+- NO line between banner and CLASS/SUBJECT text ✓ (VLM: "You do NOT see a line here; it is just blank space")
+- Single thick line below info block (matches sample) ✓
+- Live preview shows actual trimmed banner image (via /api/header-image proxy) ✓
+- PDF generation through UI: HTTP 200, no errors ✓
+- Lint clean, no runtime errors ✓
+
+Stage Summary:
+- All 5 user corrections applied and verified.
+- The worksheet now replicates the uploaded sample format: clean banner (no surrounding lines), info block, single thick separator, questions immediately — no WORKSHEET heading.
+- Developer credits appear in both the app header and footer.
+- Banner image's built-in bottom rule is automatically trimmed server-side for both preview and PDF.
