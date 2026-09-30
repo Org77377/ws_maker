@@ -1,20 +1,21 @@
 // CBSE-style Mid-Term Examination paper template.
 //
-// Replicates the layout of the uploaded MT_Subject_Grade_8.docx:
+// Layout (replicates uploaded MT_Subject_Grade_8.docx):
 //   - School banner image at top (page 1 only)
-//   - "Mid-Term Examination" centered, bold, underlined, serif (Times)
-//   - Grade / Subject / Max Marks row (bold labels)
-//   - Time / Date row (bold)
-//   - "GENERAL INSTRUCTIONS" heading, underlined
+//   - "Mid-Term Examination" centered, bold, underlined, serif
+//   - Info table (3 columns):
+//       Left:   Grade + Time  (two lines stacked)
+//       Center: Subject
+//       Right:  Mark + Date   (two lines stacked)
+//   - "GENERAL INSTRUCTIONS" heading, underlined + HR
+//   - Instruction bullet points (diamond ◆)
 //   - HR line
-//   - 7 instruction bullet points (diamond ◆ bullets)
-//   - HR line
-//   - Section A–E with per-question marks, questions flow naturally
-//   - Footer: doc code (left) + "Page X of Y" (right), thin line above
-//   - Serif font (Times New Roman / Tinos) throughout
-//
-// The font used is "Tinos" (a metric-compatible Times New Roman alternative
-// available on Google Fonts) with fallback to system serif.
+//   - Sections: each with title + instruction on left, marks carriage on right
+//       e.g. "Section A — Answer the following (any 5)    40 x 0.5 = 20"
+//     followed by the section's questions
+//   - Footer (every page): "SPS_<year>_<term>_G.<grade>_QP_<subject>" (left)
+//       + "Page X of Y" (right), thin line above
+//   - Serif font (Tinos / Times New Roman) throughout
 
 import { AnswerMode, Question, Worksheet } from "../worksheet/types";
 
@@ -33,10 +34,37 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function examQuestionBlock(q: Question, mode: AnswerMode): string {
-  // Marks badge shown after the question number
-  const marks = q.marks ? `<span class="ex-marks">[${q.marks}]</span>` : "";
+/** Build the footer code: SPS_<year>_<term>_G.<grade>_QP_<subject>.
+ *  Subject is auto-filled from the examMeta.subject (or worksheet.subject). */
+function buildFooterCode(worksheet: Worksheet): string {
+  const m = worksheet.examMeta;
+  const year = (m.footerYear || "").replace(/\s+/g, "");
+  const term = (m.footerTerm || "").replace(/\s+/g, "");
+  const grade = (m.grade || "").replace(/\s+/g, "");
+  const subject = (m.subject || worksheet.subject || "Subject")
+    .replace(/\s+/g, "");
+  return `SPS_${year}_${term}_G.${grade}_QP_${subject}`;
+}
 
+/** Compute the marks carriage, e.g. "40 x 0.5 = 20".
+ *  Falls back to just the total marks if per-question data is missing. */
+function buildMarksCarriage(section: {
+  questionCount: string;
+  perQuestionMarks: string;
+  marks: string;
+}): string {
+  const qc = (section.questionCount || "").trim();
+  const pqm = (section.perQuestionMarks || "").trim();
+  const total = (section.marks || "").trim();
+  if (qc && pqm && total) {
+    return `${qc} × ${pqm} = ${total}`;
+  }
+  if (total) return total;
+  return "";
+}
+
+function examQuestionBlock(q: Question, mode: AnswerMode): string {
+  const marks = q.marks ? `<span class="ex-marks">[${q.marks}]</span>` : "";
   let bodyHtml = "";
   switch (q.type) {
     case "mcq":
@@ -58,7 +86,6 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
         .join(" &nbsp;&nbsp; ")}</div>`;
       break;
     case "fillBlank":
-      // blank or answer injected inline
       bodyHtml = "";
       break;
     case "descriptive":
@@ -75,7 +102,7 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
       ? `${escapeHtml(q.text)}${
           mode === "marked" || mode === "answerKey"
             ? ` <i>(${escapeHtml(q.answer)})</i>`
-            : ` ${"<span class='ex-blank'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>"}`
+            : ` <span class="ex-blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`
         }`
       : escapeHtml(q.text);
 
@@ -101,19 +128,24 @@ function examHeader(worksheet: Worksheet, headerImage: string | undefined): stri
   const duration = escapeHtml(m.duration || "3 Hours");
   const date = escapeHtml(m.date || "");
 
+  // Info table: 3 columns (left=Grade+Time, center=Subject, right=Mark+Date)
+  // Using a table for rock-solid alignment regardless of content length.
   return `
     <header class="ex-header">
       <div class="ex-banner-wrap">${imgHtml}</div>
+      <table class="ex-meta-table">
+        <tr>
+          <td class="ex-meta-left"><b>Grade:</b> ${grade}</td>
+          <td class="ex-meta-center"><b>Sub:</b> ${subject}</td>
+          <td class="ex-meta-right"><b>Mark :</b> ${maxMarks}</td>
+        </tr>
+        <tr>
+          <td class="ex-meta-left"><b>Time :</b> ${duration}</td>
+          <td class="ex-meta-center">&nbsp;</td>
+          <td class="ex-meta-right"><b>Date :</b> ${date}</td>
+        </tr>
+      </table>
       <h1 class="ex-title">${title}</h1>
-      <div class="ex-meta-row">
-        <span class="ex-meta-cell"><b>Grade:</b> ${grade}</span>
-        <span class="ex-meta-cell ex-meta-center"><b>Sub:</b> ${subject}</span>
-        <span class="ex-meta-cell ex-meta-right"><b>Mark :</b> ${maxMarks}</span>
-      </div>
-      <div class="ex-meta-row">
-        <span class="ex-meta-cell"><b>Time :</b> ${duration}</span>
-        <span class="ex-meta-cell ex-meta-right"><b>Date :</b> ${date}</span>
-      </div>
     </header>`;
 }
 
@@ -134,41 +166,53 @@ function instructionsBlock(worksheet: Worksheet): string {
 
 function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
   const questions = worksheet.questions;
-  const sections = worksheet.sections.filter(
-    (s) => s.questionIds.length > 0,
-  );
+  const sections = worksheet.sections;
 
+  // If no sections defined, just render all questions flat
   if (sections.length === 0) {
-    // No sections — just render all questions flat
     return questions.map((q) => examQuestionBlock(q, mode)).join("\n");
   }
 
   const parts: string[] = [];
   const assignedIds = new Set<string>();
+
   for (const sec of sections) {
-    parts.push(`<div class="ex-section"><div class="ex-section-title">${escapeHtml(sec.title)}</div>`);
-    for (const qId of sec.questionIds) {
-      const q = questions.find((qq) => qq.id === qId);
-      if (q) {
-        parts.push(examQuestionBlock(q, mode));
-        assignedIds.add(qId);
+    // Section header row: title + instruction (left) | marks carriage (right)
+    const instruction = sec.instruction
+      ? ` <span class="ex-sec-instr">${escapeHtml(sec.instruction)}</span>`
+      : "";
+    const carriage = buildMarksCarriage(sec);
+    const carriageHtml = carriage
+      ? `<span class="ex-sec-marks">${escapeHtml(carriage)}</span>`
+      : "";
+
+    parts.push(
+      `<div class="ex-section">` +
+        `<div class="ex-section-header">` +
+          `<span class="ex-section-title">${escapeHtml(sec.title)}${instruction}</span>` +
+          carriageHtml +
+        `</div>`,
+    );
+
+    // Render questions assigned to this section
+    if (sec.questionIds.length > 0) {
+      for (const qId of sec.questionIds) {
+        const q = questions.find((qq) => qq.id === qId);
+        if (q) {
+          parts.push(examQuestionBlock(q, mode));
+          assignedIds.add(qId);
+        }
       }
     }
+
     parts.push(`</div>`);
   }
+
+  // Render any unassigned questions (not in a section)
   const unassigned = questions.filter((q) => !assignedIds.has(q.id));
   for (const q of unassigned) parts.push(examQuestionBlock(q, mode));
-  return parts.join("\n");
-}
 
-function footerBlock(_worksheet: Worksheet): string {
-  // The page number is populated via CSS counters (@page + counter(page))
-  // in the <style> block, using the .ex-pagenum / .ex-pagecount spans.
-  return `
-    <div class="ex-footer">
-      <span class="ex-footer-code"></span>
-      <span class="ex-footer-page"></span>
-    </div>`;
+  return parts.join("\n");
 }
 
 export function buildExamHtml(input: ExamTemplateInput): string {
@@ -178,7 +222,6 @@ export function buildExamHtml(input: ExamTemplateInput): string {
   const header = examHeader(worksheet, headerImage);
   const instructions = instructionsBlock(worksheet);
   const questions = sectionsBlock(worksheet, mode);
-  const footer = footerBlock(worksheet);
 
   const answerKey =
     mode === "answerKey" && worksheet.questions.length > 0
@@ -206,10 +249,11 @@ export function buildExamHtml(input: ExamTemplateInput): string {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
   <style>
-    /* ===== A4 page setup ===== */
+    /* ===== A4 page setup =====
+       Bottom margin is 20mm to accommodate the PDF engine footer. */
     @page {
       size: A4 portrait;
-      margin: 12mm 18mm 18mm 18mm;
+      margin: 12mm 18mm 20mm 18mm;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -224,27 +268,27 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     }
 
     /* ===== Header (page 1 only) ===== */
-    .ex-header { break-after: avoid; page-break-after: avoid; text-align: center; margin-bottom: 4mm; }
+    .ex-header { text-align: center; margin-bottom: 3mm; break-after: avoid; page-break-after: avoid; }
     .ex-banner-wrap { width: 100%; text-align: center; margin-bottom: 3mm; }
     .ex-banner { max-width: 100%; max-height: 30mm; height: auto; object-fit: contain; }
+    .ex-meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1mm;
+      font-size: 12pt;
+    }
+    .ex-meta-table td { padding: 0.5mm 0; vertical-align: top; }
+    .ex-meta-left { text-align: left; width: 33%; }
+    .ex-meta-center { text-align: center; width: 34%; }
+    .ex-meta-right { text-align: right; width: 33%; }
     .ex-title {
       font-size: 18pt;
       font-weight: 700;
       text-align: center;
       text-decoration: underline;
-      margin: 2mm 0 3mm 0;
+      margin: 2mm 0 1mm 0;
       letter-spacing: 0.02em;
     }
-    .ex-meta-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      font-size: 12pt;
-      margin-bottom: 1mm;
-    }
-    .ex-meta-cell { flex: 1; }
-    .ex-meta-center { text-align: center; }
-    .ex-meta-right { text-align: right; }
 
     /* ===== Instructions ===== */
     .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
@@ -276,12 +320,25 @@ export function buildExamHtml(input: ExamTemplateInput): string {
 
     /* ===== Sections ===== */
     .ex-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
+    .ex-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid #000;
+      padding-bottom: 1mm;
+      margin-bottom: 2mm;
+      margin-top: 2mm;
+    }
     .ex-section-title {
       font-size: 12pt;
       font-weight: 700;
       text-decoration: underline;
-      margin-bottom: 2mm;
-      margin-top: 2mm;
+    }
+    .ex-sec-instr { font-weight: 400; font-size: 11.5pt; }
+    .ex-sec-marks {
+      font-size: 11.5pt;
+      font-weight: 600;
+      white-space: nowrap;
     }
 
     /* ===== Questions ===== */
@@ -302,7 +359,6 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     .ex-marks {
       font-size: 11pt;
       font-weight: 600;
-      color: #000;
       margin-left: 2mm;
       white-space: nowrap;
     }
@@ -315,11 +371,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     }
     .ex-opt { font-size: 11.5pt; }
     .ex-opt-label { font-weight: 600; margin-right: 1.5mm; }
-    .ex-opt-text {}
-    .ex-tf {
-      padding-left: 8mm;
-      font-size: 11.5pt;
-    }
+    .ex-tf { padding-left: 8mm; font-size: 11.5pt; }
     .ex-tf-opt { font-weight: 500; margin-right: 12mm; }
     .ex-blank {
       display: inline-block;
@@ -328,11 +380,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       height: 1px;
       vertical-align: baseline;
     }
-    .ex-lines {
-      margin: 2mm 0 0 8mm;
-      border-bottom: 1px solid #666;
-      height: 8mm;
-    }
+    .ex-lines { margin: 2mm 0 0 8mm; border-bottom: 1px solid #666; height: 8mm; }
     .ex-ans { margin: 2mm 0 0 8mm; font-size: 11.5pt; }
 
     /* ===== Answer Key ===== */
@@ -350,34 +398,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       letter-spacing: 0.2em;
       margin-bottom: 3mm;
     }
-    .ex-ak-item {
-      display: inline-block;
-      margin-right: 8mm;
-      font-size: 11.5pt;
-    }
-
-    /* ===== Footer (every page) ===== */
-    /* The footer repeats on every page via position: fixed. The page number
-       is populated by CSS counters (@page counter). */
-    @page {
-      counter-increment: page;
-    }
-    .ex-footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 0 18mm 6mm 18mm;
-      font-size: 10pt;
-      border-top: 1px solid #999;
-      padding-top: 2mm;
-      display: flex;
-      justify-content: space-between;
-    }
-    .ex-footer-code::before { content: ""; }
-    .ex-footer-page::before {
-      content: "Page " counter(page) " of " counter(pages);
-    }
+    .ex-ak-item { display: inline-block; margin-right: 8mm; font-size: 11.5pt; }
   </style>
 </head>
 <body>
@@ -385,9 +406,20 @@ export function buildExamHtml(input: ExamTemplateInput): string {
   ${instructions}
   ${questions}
   ${answerKey}
-  ${footer}
 </body>
 </html>`;
+}
+
+/** Build the footer template HTML for the PDF engine (Puppeteer/Playwright).
+ *  Uses [pageNumber] and [totalPages] placeholders. */
+export function buildExamFooterTemplate(worksheet: Worksheet): string {
+  const code = buildFooterCode(worksheet);
+  // The footer template is restricted HTML (no external resources, inline CSS only).
+  // Margin must match the page bottom margin (20mm).
+  return `<div style="width: 100%; font-family: 'Times New Roman', serif; font-size: 9pt; color: #333; display: flex; justify-content: space-between; padding: 0 18mm 6mm 18mm; border-top: 1px solid #999; margin: 0 18mm;">
+    <span>${escapeHtml(code)}</span>
+    <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+  </div>`;
 }
 
 /** Build a safe filename for the exam PDF. */

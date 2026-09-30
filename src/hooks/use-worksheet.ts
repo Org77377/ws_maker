@@ -55,7 +55,7 @@ interface WorksheetState {
 
   // Actions — sections
   addSection: (title?: string) => string;
-  updateSectionTitle: (id: string, title: string) => void;
+  updateSection: (id: string, patch: Partial<Section>) => void;
   deleteSection: (id: string) => void;
   assignQuestionToSection: (qId: string, sectionId: string | null) => void;
 
@@ -174,18 +174,30 @@ export const useWorksheetStore = create<WorksheetState>()(
         })),
 
       // ---- Sections ----
-      addSection: (title = "Section") => {
+      addSection: (title = "Section A") => {
         const id = makeSectionId();
         set((s) => ({
-          sections: [...s.sections, { id, title, questionIds: [] }],
+          sections: [
+            ...s.sections,
+            {
+              id,
+              title,
+              questionIds: [],
+              instruction: "Answer the following",
+              marks: "20",
+              perQuestionMarks: "0.5",
+              attemptCount: "5",
+              questionCount: "40",
+            },
+          ],
         }));
         return id;
       },
 
-      updateSectionTitle: (id, title) =>
+      updateSection: (id, patch) =>
         set((s) => ({
           sections: s.sections.map((sec) =>
-            sec.id === id ? { ...sec, title } : sec,
+            sec.id === id ? { ...sec, ...patch } : sec,
           ),
         })),
 
@@ -426,6 +438,8 @@ D5. Explain the difference between hardware and software with examples.
             maxMarks: "80",
             duration: "3 Hours",
             date: "",
+            footerYear: "2026-27",
+            footerTerm: "MT",
             instructions: [
               "The question paper is divided into five sections – A, B, C, D and E.",
               "All questions are compulsory.",
@@ -437,11 +451,10 @@ D5. Explain the difference between hardware and software with examples.
             ],
           },
           sections: [
-            { id: makeSectionId(), title: "Section A – Objective Questions", questionIds: [] },
-            { id: makeSectionId(), title: "Section B – Very Short Answer", questionIds: [] },
-            { id: makeSectionId(), title: "Section C – Short Answer", questionIds: [] },
-            { id: makeSectionId(), title: "Section D – Long Answer", questionIds: [] },
-            { id: makeSectionId(), title: "Section E – Case Based", questionIds: [] },
+            { id: makeSectionId(), title: "Section A", instruction: "Answer the following (any 5)", marks: "20", perQuestionMarks: "0.5", attemptCount: "5", questionCount: "40", questionIds: [] },
+            { id: makeSectionId(), title: "Section B", instruction: "Answer the following (any 4)", marks: "20", perQuestionMarks: "2", attemptCount: "4", questionCount: "10", questionIds: [] },
+            { id: makeSectionId(), title: "Section C", instruction: "Answer the following (any 3)", marks: "20", perQuestionMarks: "3", attemptCount: "3", questionCount: "6", questionIds: [] },
+            { id: makeSectionId(), title: "Section D", instruction: "Answer the following (any 2)", marks: "20", perQuestionMarks: "5", attemptCount: "2", questionCount: "4", questionIds: [] },
           ],
         })),
 
@@ -476,7 +489,23 @@ D5. Explain the difference between hardware and software with examples.
         if (s.mode === undefined) s.mode = "worksheet";
         if (s.worksheetHeading === undefined) s.worksheetHeading = "";
         if (!Array.isArray(s.sections)) s.sections = [];
+        // Migrate sections: add new fields if missing
+        if (Array.isArray(s.sections)) {
+          s.sections = (s.sections as Section[]).map((sec) => ({
+            instruction: sec.instruction ?? "Answer the following",
+            marks: sec.marks ?? "",
+            perQuestionMarks: sec.perQuestionMarks ?? "",
+            attemptCount: sec.attemptCount ?? "",
+            questionCount: sec.questionCount ?? "",
+            ...sec,
+          }));
+        }
         if (!s.examMeta) s.examMeta = createDefaultExamMeta();
+        else {
+          const em = s.examMeta as Record<string, unknown>;
+          if (em.footerYear === undefined) em.footerYear = "2026-27";
+          if (em.footerTerm === undefined) em.footerTerm = "MT";
+        }
         // Migrate questions: add type/answer/marks if missing
         if (Array.isArray(s.questions)) {
           s.questions = (s.questions as Question[]).map((q) => ({
@@ -488,7 +517,7 @@ D5. Explain the difference between hardware and software with examples.
         }
         return s as never;
       },
-      version: 2,
+      version: 3,
       partialize: (s) => ({
         mode: s.mode,
         rawInput: s.rawInput,

@@ -36,6 +36,16 @@ export interface Section {
   title: string;
   /** Ordered list of question ids that belong to this section. */
   questionIds: string[];
+  /** Instruction shown after the title, e.g. "Answer the following (any 5)". */
+  instruction: string;
+  /** Total marks for this section (shown on the right, e.g. "20"). */
+  marks: string;
+  /** Per-question marks multiplier, e.g. "0.5" → renders "40 x 0.5 = 20". */
+  perQuestionMarks: string;
+  /** Number of questions to attempt, e.g. "5" → "any 5". */
+  attemptCount: string;
+  /** Total number of questions in the section, e.g. "40". */
+  questionCount: string;
 }
 
 export interface ExamMeta {
@@ -47,6 +57,9 @@ export interface ExamMeta {
   date: string; // e.g. "05/10/2026"
   /** General instruction lines shown in the instructions box. */
   instructions: string[];
+  /** Footer code components — rendered as SPS_<year>_<term>_<grade>_QP_<subject>. */
+  footerYear: string; // e.g. "2026-27"
+  footerTerm: string; // e.g. "MT" (Mid-Term)
 }
 
 export interface Worksheet {
@@ -133,6 +146,8 @@ export function createDefaultExamMeta(): ExamMeta {
     duration: "3 Hours",
     date: "",
     instructions: [...DEFAULT_EXAM_INSTRUCTIONS],
+    footerYear: "2026-27",
+    footerTerm: "MT",
   };
 }
 

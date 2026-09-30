@@ -152,6 +152,58 @@ export function ExamMetaForm() {
               </div>
             </div>
 
+            {/* Row: Footer Year / Term (for the footer code SPS_<year>_<term>_G.<grade>_QP_<subject>) */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="exam-footer-year"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Footer Year{" "}
+                  <span className="font-normal text-muted-foreground/70">
+                    (SPS_&lt;year&gt;_…)
+                  </span>
+                </Label>
+                <Input
+                  id="exam-footer-year"
+                  value={examMeta.footerYear}
+                  onChange={(e) => setExamMeta({ footerYear: e.target.value })}
+                  placeholder="2026-27"
+                  className="h-11 text-base sm:h-10 sm:text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label
+                  htmlFor="exam-footer-term"
+                  className="text-xs font-medium text-muted-foreground"
+                >
+                  Footer Term{" "}
+                  <span className="font-normal text-muted-foreground/70">
+                    (MT, FY, etc.)
+                  </span>
+                </Label>
+                <Input
+                  id="exam-footer-term"
+                  value={examMeta.footerTerm}
+                  onChange={(e) => setExamMeta({ footerTerm: e.target.value })}
+                  placeholder="MT"
+                  className="h-11 text-base sm:h-10 sm:text-sm"
+                />
+              </div>
+            </div>
+            {/* Footer preview */}
+            <p className="rounded-md bg-muted/50 px-3 py-1.5 text-center text-[11px] text-muted-foreground">
+              Footer:{" "}
+              <span className="font-mono font-medium text-foreground">
+                SPS_{examMeta.footerYear || "…"}_{examMeta.footerTerm || "…"}_G.
+                {examMeta.grade || "…"}_QP_{(
+                  examMeta.subject ||
+                  useWorksheetStore.getState().subject ||
+                  "Subject"
+                ).replace(/\s+/g, "")}
+              </span>
+            </p>
+
             {/* General Instructions list */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

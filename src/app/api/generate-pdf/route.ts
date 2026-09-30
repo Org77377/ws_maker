@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildFilename, buildWorksheetHtml } from "@/lib/pdf/template";
-import { buildExamFilename, buildExamHtml } from "@/lib/pdf/exam-template";
+import {
+  buildExamFilename,
+  buildExamFooterTemplate,
+  buildExamHtml,
+} from "@/lib/pdf/exam-template";
 import { renderHtmlToPdf } from "@/lib/pdf/renderer";
 import { resolveHeaderImageDataUrl } from "@/lib/pdf/header-image";
 import type { Worksheet } from "@/lib/worksheet/types";
@@ -51,8 +55,11 @@ export async function POST(req: NextRequest) {
       format: "A4",
       printBackground: true,
       margin: isExam
-        ? { top: "12mm", bottom: "18mm", left: "18mm", right: "18mm" }
+        ? { top: "12mm", bottom: "20mm", left: "18mm", right: "18mm" }
         : { top: "8mm", bottom: "15mm", left: "16mm", right: "16mm" },
+      // Exam mode: use the PDF engine's footer for page numbers + doc code
+      displayHeaderFooter: isExam,
+      footerTemplate: isExam ? buildExamFooterTemplate(worksheet) : undefined,
     });
 
     const filename = isExam

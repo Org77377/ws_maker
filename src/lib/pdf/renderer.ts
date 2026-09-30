@@ -23,6 +23,12 @@ export interface RenderOptions {
     left?: string;
     right?: string;
   };
+  /** When provided, the PDF engine renders this HTML footer on every page.
+   *  Supports the placeholders [pageNumber] and [totalPages].
+   *  Used for the CBSE exam paper footer (page numbers + doc code). */
+  footerTemplate?: string;
+  /** When true, shows the footer (requires footerTemplate). */
+  displayHeaderFooter?: boolean;
 }
 
 // ---- Playwright path (local dev) -----------------------------------------
@@ -183,6 +189,9 @@ async function renderWithPuppeteer(
       printBackground: options.printBackground ?? true,
       margin,
       preferCSSPageSize: true,
+      displayHeaderFooter: options.displayHeaderFooter ?? false,
+      headerTemplate: "<div></div>",
+      footerTemplate: options.footerTemplate || "<div></div>",
     });
     return Buffer.from(pdf);
   } finally {
@@ -238,6 +247,9 @@ async function renderWithPlaywright(
       printBackground: options.printBackground ?? true,
       margin,
       preferCSSPageSize: true,
+      displayHeaderFooter: options.displayHeaderFooter ?? false,
+      headerTemplate: "<div></div>",
+      footerTemplate: options.footerTemplate || "<div></div>",
     });
     return Buffer.from(pdf);
   } finally {
