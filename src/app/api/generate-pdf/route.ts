@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildFilename, buildWorksheetHtml } from "@/lib/pdf/template";
+import { buildExamFilename, buildExamHtml } from "@/lib/pdf/exam-template";
 import { renderHtmlToPdf } from "@/lib/pdf/renderer";
 import { resolveHeaderImageDataUrl } from "@/lib/pdf/header-image";
 import type { Worksheet } from "@/lib/worksheet/types";
@@ -37,18 +38,26 @@ export async function POST(req: NextRequest) {
       worksheet.schoolHeaderImage,
     );
 
-    const html = buildWorksheetHtml({
-      worksheet,
-      headerImage: headerDataUrl ?? undefined,
-    });
+    // Route to the appropriate template based on document mode.
+    const isExam = worksheet.mode === "exam";
+    const html = isExam
+      ? buildExamHtml({ worksheet, headerImage: headerDataUrl ?? undefined })
+      : buildWorksheetHtml({
+          worksheet,
+          headerImage: headerDataUrl ?? undefined,
+        });
 
     const pdfBuffer = await renderHtmlToPdf(html, {
       format: "A4",
       printBackground: true,
-      margin: { top: "8mm", bottom: "15mm", left: "16mm", right: "16mm" },
+      margin: isExam
+        ? { top: "12mm", bottom: "18mm", left: "18mm", right: "18mm" }
+        : { top: "8mm", bottom: "15mm", left: "16mm", right: "16mm" },
     });
 
-    const filename = buildFilename(worksheet);
+    const filename = isExam
+      ? buildExamFilename(worksheet)
+      : buildFilename(worksheet);
 
     return new NextResponse(pdfBuffer as unknown as BodyInit, {
       status: 200,

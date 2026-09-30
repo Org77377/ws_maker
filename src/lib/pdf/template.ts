@@ -33,6 +33,7 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// ---- MCQ option line ----
 function optionLine(
   opt: { label: string; text: string; correct: boolean },
   mode: AnswerMode,
@@ -45,30 +46,89 @@ function optionLine(
         </div>`;
 }
 
-function questionBlock(q: Question, mode: AnswerMode): string {
-  const opts = q.options.map((o) => optionLine(o, mode)).join("");
+// ---- True/False inline options ----
+function trueFalseLine(q: Question, mode: AnswerMode): string {
+  const items = q.options.map((opt) => {
+    const marker = mode === "marked" && opt.correct ? " *" : "";
+    return `<span class="tf-opt"><span class="tf-letter">${escapeHtml(opt.text)}</span>${marker}</span>`;
+  }).join(" &nbsp;&nbsp; ");
   return `
-      <div class="question">
+      <div class="tf-row">${items}</div>`;
+}
+
+// ---- Fill-in-the-blank: show a blank line; in marked/answerKey mode show the answer ----
+function fillBlankLine(q: Question, mode: AnswerMode): string {
+  if (mode === "marked" || mode === "answerKey") {
+    return ` <span class="fill-answer">(${escapeHtml(q.answer)})</span>`;
+  }
+  return ` <span class="fill-blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`;
+}
+
+// ---- Descriptive: show ruled writing space; in answerKey mode show the model answer ----
+function descriptiveBlock(q: Question, mode: AnswerMode): string {
+  if (mode === "answerKey" && q.answer.trim()) {
+    return `
+      <div class="desc-answer"><span class="ans-label">Ans:</span> ${escapeHtml(q.answer)}</div>`;
+  }
+  // Provide ~3 ruled writing lines (CSS .desc-lines)
+  return `
+      <div class="desc-lines" data-lines="3"></div>`;
+}
+
+function questionBlock(q: Question, mode: AnswerMode): string {
+  let bodyHtml = "";
+  switch (q.type) {
+    case "mcq":
+      bodyHtml = q.options.length
+        ? `<div class="opts">${q.options.map((o) => optionLine(o, mode)).join("")}
+        </div>`
+        : "";
+      break;
+    case "trueFalse":
+      bodyHtml = trueFalseLine(q, mode);
+      break;
+    case "fillBlank":
+      // The blank is rendered inline within the question text
+      bodyHtml = "";
+      break;
+    case "descriptive":
+      bodyHtml = descriptiveBlock(q, mode);
+      break;
+  }
+
+  // For fillBlank, inject the blank/answer into the question text
+  const questionText =
+    q.type === "fillBlank"
+      ? `${escapeHtml(q.text)}${fillBlankLine(q, mode)}`
+      : escapeHtml(q.text);
+
+  return `
+      <div class="question question-${q.type}">
         <div class="q-text">
           <span class="q-num">${q.number}.</span>
-          <span class="q-body">${escapeHtml(q.text)}</span>
-        </div>
-        <div class="opts">${opts}
-        </div>
+          <span class="q-body">${questionText}</span>
+        </div>${bodyHtml}
       </div>`;
 }
 
 function answerKeyBlock(questions: Question[]): string {
-  // Compact multi-column answer key. 5 columns.
+  // Type-aware answer key. MCQ/TF show the letter; fill/descriptive show the
+  // model answer text (truncated).
   const rows: string[] = [];
   const perRow = 5;
   for (let i = 0; i < questions.length; i += perRow) {
     const slice = questions.slice(i, i + perRow);
     const cells = slice
       .map((q) => {
-        const correct = q.options.find((o) => o.correct);
-        const ans = correct ? correct.label : "—";
-        return `<span class="ak-item"><span class="ak-num">${q.number}.</span> <span class="ak-ans">${ans}</span></span>`;
+        let ans = "—";
+        if (q.type === "mcq" || q.type === "trueFalse") {
+          const correct = q.options.find((o) => o.correct);
+          ans = correct ? correct.label : "—";
+        } else if (q.answer.trim()) {
+          ans = q.answer.trim().slice(0, 20);
+          if (q.answer.trim().length > 20) ans += "…";
+        }
+        return `<span class="ak-item"><span class="ak-num">${q.number}.</span> <span class="ak-ans">${escapeHtml(ans)}</span></span>`;
       })
       .join("");
     rows.push(`        <div class="ak-row">${cells}</div>`);
@@ -100,10 +160,10 @@ function headerSection(
   const section = escapeHtml(worksheet.section || "");
   const rollNo = escapeHtml(worksheet.rollNo || "");
 
-  // "MCQs – Chapter 4" — only include the number when present.
-  const mcqHeading = chapterNo
-    ? `MCQs – Chapter ${chapterNo}`
-    : "MCQs";
+  // Configurable heading — defaults to "MCQs – Chapter <n>" when empty.
+  const heading =
+    worksheet.worksheetHeading?.trim() ||
+    (chapterNo ? `MCQs – Chapter ${chapterNo}` : "MCQs");
 
   // Underline fill for handwriting fields (Name, Section, Rollno).
   // Class shows its value inline (no underline) per the reference.
@@ -146,7 +206,7 @@ function headerSection(
         </div>
       </div>
       <hr class="ws-rule" />
-      <h1 class="ws-heading">${mcqHeading}</h1>
+      <h1 class="ws-heading">${heading}</h1>
     </header>`;
 }
 
@@ -156,9 +216,37 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
   const questions = worksheet.questions;
 
   const header = headerSection(worksheet, headerImage);
-  const questionHtml = questions
-    .map((q) => questionBlock(q, mode))
-    .join("\n");
+
+  // Render questions — grouped by sections if any exist, otherwise flat.
+  const sections = worksheet.sections.filter(
+    (s) => s.questionIds.length > 0,
+  );
+  let questionHtml: string;
+  if (sections.length > 0) {
+    // Sectioned rendering
+    const parts: string[] = [];
+    const assignedIds = new Set<string>();
+    for (const sec of sections) {
+      parts.push(`<div class="ws-section"><div class="ws-section-title">${escapeHtml(sec.title)}</div>`);
+      for (const qId of sec.questionIds) {
+        const q = questions.find((q) => q.id === qId);
+        if (q) {
+          parts.push(questionBlock(q, mode));
+          assignedIds.add(qId);
+        }
+      }
+      parts.push(`</div>`);
+    }
+    // Render any unassigned questions (not in a section)
+    const unassigned = questions.filter((q) => !assignedIds.has(q.id));
+    if (unassigned.length) {
+      for (const q of unassigned) parts.push(questionBlock(q, mode));
+    }
+    questionHtml = parts.join("\n");
+  } else {
+    questionHtml = questions.map((q) => questionBlock(q, mode)).join("\n");
+  }
+
   const answerKey =
     mode === "answerKey" && questions.length > 0
       ? answerKeyBlock(questions)
@@ -326,6 +414,77 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       color: #374151;
     }
     .opt-text { flex: 1 1 auto; }
+
+    /* ===== True/False questions ===== */
+    .tf-row {
+      padding-left: 8mm;
+      font-size: 10pt;
+      color: #1f2937;
+      margin-top: 1mm;
+    }
+    .tf-opt {
+      font-weight: 500;
+      margin-right: 10mm;
+    }
+    .tf-letter {
+      font-weight: 600;
+      color: #374151;
+    }
+
+    /* ===== Fill-in-the-blank ===== */
+    .fill-blank {
+      display: inline-block;
+      border-bottom: 1px solid #111827;
+      min-width: 25mm;
+      height: 1px;
+      vertical-align: baseline;
+    }
+    .fill-answer {
+      font-weight: 600;
+      color: #1e3a5f;
+      font-style: italic;
+    }
+
+    /* ===== Descriptive questions ===== */
+    .desc-lines {
+      margin-top: 2mm;
+      margin-left: 8mm;
+      border-bottom: 1px solid #9ca3af;
+      height: 8mm;
+    }
+    .desc-lines::before,
+    .desc-lines::after {
+      content: "";
+      display: block;
+      border-bottom: 1px solid #9ca3af;
+      height: 8mm;
+    }
+    .desc-answer {
+      margin-top: 2mm;
+      margin-left: 8mm;
+      font-size: 10pt;
+      color: #1f2937;
+    }
+    .desc-answer .ans-label {
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+
+    /* ===== Sections ===== */
+    .ws-section {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      margin-bottom: 4mm;
+    }
+    .ws-section-title {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #1e3a5f;
+      border-bottom: 1px solid #cbd5e1;
+      padding-bottom: 1mm;
+      margin-bottom: 3mm;
+      margin-top: 3mm;
+    }
 
     /* ===== Answer Key ===== */
     .answer-key {

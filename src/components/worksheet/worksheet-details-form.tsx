@@ -28,6 +28,7 @@ export function WorksheetDetailsForm() {
     section,
     rollNo,
     schoolHeaderImage,
+    worksheetHeading,
     setClassName,
     setSubject,
     setChapterNumber,
@@ -35,6 +36,7 @@ export function WorksheetDetailsForm() {
     setSection,
     setRollNo,
     setSchoolHeaderImage,
+    setWorksheetHeading,
   } = useWorksheetStore();
 
   // Collapsed by default on mobile (expanded on desktop via CSS open state).
@@ -151,7 +153,7 @@ export function WorksheetDetailsForm() {
                 >
                   Chapter No.{" "}
                   <span className="font-normal text-muted-foreground/70">
-                    (for MCQs heading)
+                    (for heading)
                   </span>
                 </Label>
                 <Input
@@ -163,6 +165,25 @@ export function WorksheetDetailsForm() {
                   className="h-11 text-base sm:h-10 sm:text-sm"
                 />
               </div>
+            </div>
+            {/* Custom heading (overrides the default "MCQs – Chapter N") */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="ws-heading"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Worksheet Heading{" "}
+                <span className="font-normal text-muted-foreground/70">
+                  (blank = auto "MCQs – Chapter N")
+                </span>
+              </Label>
+              <Input
+                id="ws-heading"
+                value={worksheetHeading}
+                onChange={(e) => setWorksheetHeading(e.target.value)}
+                placeholder="e.g. Chapter 4 — Introduction to Krita"
+                className="h-11 text-base sm:h-10 sm:text-sm"
+              />
             </div>
             <div className="space-y-1.5">
               <Label

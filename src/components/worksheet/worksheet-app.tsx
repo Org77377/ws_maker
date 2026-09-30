@@ -2,6 +2,9 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { WorksheetDetailsForm } from "@/components/worksheet/worksheet-details-form";
+import { ExamMetaForm } from "@/components/worksheet/exam-meta-form";
+import { SectionManager } from "@/components/worksheet/section-manager";
+import { ModeToggle } from "@/components/worksheet/mode-toggle";
 import { QuestionInput } from "@/components/worksheet/question-input";
 import { ValidationResults } from "@/components/worksheet/validation-results";
 import { QuestionEditor } from "@/components/worksheet/question-editor";
@@ -26,6 +29,7 @@ type MobileView = "edit" | "preview";
 export function WorksheetApp() {
   const mounted = useMounted();
   const questions = useWorksheetStore((s) => s.questions);
+  const mode = useWorksheetStore((s) => s.mode);
   const { generate, isGenerating } = useGeneratePdf();
   const [mobileView, setMobileView] = useState<MobileView>("edit");
 
@@ -38,19 +42,29 @@ export function WorksheetApp() {
   }
 
   const canGenerate = questions.length > 0;
+  const isExam = mode === "exam";
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-6">
-      {/* ===== Left: controls (visible on desktop always; on mobile only in "edit" tab) ===== */}
+      {/* ===== Left: controls ===== */}
       <div
         className={cn(
           "space-y-3 sm:space-y-4",
           mobileView === "preview" && "hidden lg:block",
         )}
       >
-        <WorksheetDetailsForm />
+        {/* Mode toggle — always visible at the top */}
+        <ModeToggle />
+
+        {/* Mode-specific metadata form */}
+        {isExam ? <ExamMetaForm /> : <WorksheetDetailsForm />}
+
         <QuestionInput />
         <ValidationResults />
+
+        {/* Section manager — shown when there are sections or in exam mode */}
+        {isExam && <SectionManager />}
+
         <QuestionEditor />
         <SettingsPanel />
 
@@ -64,7 +78,7 @@ export function WorksheetApp() {
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Generating your worksheet...
+              Generating your {isExam ? "exam paper" : "worksheet"}...
             </>
           ) : (
             <>
@@ -75,7 +89,7 @@ export function WorksheetApp() {
         </Button>
       </div>
 
-      {/* ===== Right: live A4 preview (visible on desktop always; on mobile only in "preview" tab) ===== */}
+      {/* ===== Right: live A4 preview ===== */}
       <div
         className={cn(
           "lg:sticky lg:top-4 lg:self-start",
@@ -85,16 +99,12 @@ export function WorksheetApp() {
         <WorksheetPreview />
       </div>
 
-      {/* ===== Mobile bottom bar: compact single row (Generate + tabs) =====
-          Layout: [ Generate PDF button (flex-1) ] [ Edit | Preview ]
-          This avoids the double-stack that wasted vertical space and keeps
-          the primary action always visible. Respects the iOS safe-area inset. */}
+      {/* ===== Mobile bottom bar ===== */}
       <div
         className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 shadow-[0_-2px_12px_rgba(15,23,42,0.06)] backdrop-blur supports-[backdrop-filter]:bg-background/90 lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="flex items-stretch gap-2 p-2">
-          {/* Generate PDF — primary action, takes most of the width */}
           <Button
             type="button"
             onClick={generate}
@@ -114,7 +124,6 @@ export function WorksheetApp() {
             )}
           </Button>
 
-          {/* Tab switcher — compact segmented control */}
           <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-muted p-0.5">
             <button
               type="button"

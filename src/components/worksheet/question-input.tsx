@@ -4,15 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorksheetStore } from "@/hooks/use-worksheet";
-import { ClipboardList, Sparkles, Eraser } from "lucide-react";
+import { ClipboardList, Sparkles, Eraser, ScrollText } from "lucide-react";
 
 export function QuestionInput() {
-  const { rawInput, setRawInput, parseInput, loadSample, questions } =
-    useWorksheetStore();
+  const {
+    rawInput,
+    setRawInput,
+    parseInput,
+    loadSample,
+    loadExamSample,
+    questions,
+  } = useWorksheetStore();
 
   const handleParse = () => {
     parseInput();
-    // Scroll to editor on mobile
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
       setTimeout(() => {
         document
@@ -39,7 +44,17 @@ export function QuestionInput() {
               className="h-8 text-xs text-muted-foreground hover:text-foreground"
             >
               <Sparkles className="mr-1 h-3.5 w-3.5" />
-              Sample
+              MCQ Sample
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={loadExamSample}
+              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+            >
+              <ScrollText className="mr-1 h-3.5 w-3.5" />
+              Exam Sample
             </Button>
             <Button
               type="button"
@@ -59,13 +74,16 @@ export function QuestionInput() {
         <Textarea
           value={rawInput}
           onChange={(e) => setRawInput(e.target.value)}
-          placeholder={`Paste your questions here. Mark the correct answer with an asterisk (*) after the option text.
+          placeholder={`Paste questions here. Type prefixes: M=MCQ, T=True/False, F=Fill, D=Descriptive.
+Mark correct MCQ with * after the option. For fill, add "~ answer" at end.
 
-1. Which shortcut selects the entire worksheet?
+M1. Which shortcut selects the entire worksheet?
 A. Ctrl + A *
 B. Ctrl + C
-C. Ctrl + X
-D. Ctrl + V`}
+
+T2. Excel is a spreadsheet application.
+
+F3. The active cell is identified by a ___ ~ border`}
           className="min-h-[200px] resize-y text-base leading-relaxed scroll-thin sm:text-[13px]"
           spellCheck={false}
         />

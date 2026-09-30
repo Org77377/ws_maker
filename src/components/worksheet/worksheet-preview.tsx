@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useWorksheetStore } from "@/hooks/use-worksheet";
 import { useGeneratePdf } from "@/hooks/use-generate-pdf";
 import { buildWorksheetHtml } from "@/lib/pdf/template";
+import { buildExamHtml } from "@/lib/pdf/exam-template";
 import type { Worksheet } from "@/lib/worksheet/types";
 import { Eye, Printer, Loader2 } from "lucide-react";
 
@@ -30,6 +31,7 @@ function toEmbeddable(src: string): string {
 export function WorksheetPreview() {
   const worksheet = useWorksheetStore(
     useShallow((s) => ({
+      mode: s.mode,
       schoolHeaderImage: s.schoolHeaderImage,
       className: s.className,
       subject: s.subject,
@@ -38,7 +40,10 @@ export function WorksheetPreview() {
       section: s.section,
       rollNo: s.rollNo,
       answerMode: s.answerMode,
+      worksheetHeading: s.worksheetHeading,
       questions: s.questions,
+      sections: s.sections,
+      examMeta: s.examMeta,
     })),
   ) as Worksheet;
   const { generate, isGenerating } = useGeneratePdf();
@@ -67,10 +72,15 @@ export function WorksheetPreview() {
 
   const html = useMemo(
     () =>
-      buildWorksheetHtml({
-        worksheet,
-        headerImage: headerUrl || undefined,
-      }),
+      worksheet.mode === "exam"
+        ? buildExamHtml({
+            worksheet,
+            headerImage: headerUrl || undefined,
+          })
+        : buildWorksheetHtml({
+            worksheet,
+            headerImage: headerUrl || undefined,
+          }),
     [worksheet, headerUrl],
   );
 

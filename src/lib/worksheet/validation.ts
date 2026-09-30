@@ -1,17 +1,10 @@
 // Validation engine for parsed worksheets.
 //
-// Detects:
-//  - Missing question text
-//  - Missing options / empty option text
-//  - Fewer than 2 options
-//  - Multiple correct answers
-//  - No correct answer
-//  - Invalid option labels (non A-F, gaps, duplicates)
-//  - Duplicate question numbers (from raw parse, surfaced as warning)
-//
-// Missing question NUMBER is intentionally NOT an error because the parser
-// auto-assigns sequential numbers. We surface it only when the input was
-// completely malformed (no questions detected).
+// Type-aware rules:
+//   - mcq:        needs ≥2 options, exactly 1 correct
+//   - trueFalse:  needs exactly 2 options (True/False), exactly 1 correct
+//   - fillBlank:  needs non-empty answer; no options required
+//   - descriptive: needs question text; no options/correct answer required
 
 import { Question, ValidationResult, ValidationIssue } from "./types";
 
@@ -42,7 +35,7 @@ export function validateQuestions(questions: Question[]): ValidationResult {
     const qIssues: ValidationIssue[] = [];
     let qValid = true;
 
-    // Missing question text
+    // Missing question text (applies to all types)
     if (!q.text.trim()) {
       qIssues.push({
         severity: "error",
@@ -53,79 +46,23 @@ export function validateQuestions(questions: Question[]): ValidationResult {
       qValid = false;
     }
 
-    // Options count
-    if (q.options.length === 0) {
-      qIssues.push({
-        severity: "error",
-        message: `Question ${q.number} has no options.`,
-        questionId: q.id,
-        questionNumber: q.number,
-      });
-      qValid = false;
-    } else if (q.options.length < 2) {
-      qIssues.push({
-        severity: "error",
-        message: `Question ${q.number} has fewer than 2 options.`,
-        questionId: q.id,
-        questionNumber: q.number,
-      });
-      qValid = false;
+    switch (q.type) {
+      case "mcq":
+        validateMcq(q, qIssues);
+        break;
+      case "trueFalse":
+        validateTrueFalse(q, qIssues);
+        break;
+      case "fillBlank":
+        validateFillBlank(q, qIssues);
+        break;
+      case "descriptive":
+        validateDescriptive(q, qIssues);
+        break;
     }
 
-    // Empty option text & invalid labels
-    const seenLabels = new Set<string>();
-    q.options.forEach((opt, i) => {
-      totalOptions++;
-      if (!opt.label || !VALID_LABELS.includes(opt.label.toUpperCase())) {
-        qIssues.push({
-          severity: "error",
-          message: `Question ${q.number} option #${i + 1} has an invalid label.`,
-          questionId: q.id,
-          questionNumber: q.number,
-        });
-        qValid = false;
-      } else {
-        if (seenLabels.has(opt.label.toUpperCase())) {
-          qIssues.push({
-            severity: "error",
-            message: `Question ${q.number} has duplicate option ${opt.label}.`,
-            questionId: q.id,
-            questionNumber: q.number,
-          });
-          qValid = false;
-        }
-        seenLabels.add(opt.label.toUpperCase());
-      }
-      if (!opt.text.trim()) {
-        qIssues.push({
-          severity: "error",
-          message: `Question ${q.number} is missing option ${opt.label || `#${i + 1}`}.`,
-          questionId: q.id,
-          questionNumber: q.number,
-        });
-        qValid = false;
-      }
-    });
-
-    // Correct answer checks
-    const correctCount = q.options.filter((o) => o.correct).length;
-    if (correctCount === 0) {
-      qIssues.push({
-        severity: "error",
-        message: `Question ${q.number} has no correct answer marked.`,
-        questionId: q.id,
-        questionNumber: q.number,
-      });
-      qValid = false;
-    } else if (correctCount > 1) {
-      qIssues.push({
-        severity: "error",
-        message: `Question ${q.number} has ${correctCount} answers marked as correct.`,
-        questionId: q.id,
-        questionNumber: q.number,
-      });
-      qValid = false;
-    }
+    // Re-check validity after type-specific validation
+    if (qIssues.some((i) => i.severity === "error")) qValid = false;
 
     issues.push(...qIssues);
     if (qValid) validCount++;
@@ -141,6 +78,88 @@ export function validateQuestions(questions: Question[]): ValidationResult {
     issues,
     totalOptions,
     hasBlockingErrors: errorCount > 0,
+  };
+}
+
+function validateMcq(q: Question, issues: ValidationIssue[]): void {
+  if (q.options.length === 0) {
+    issues.push(err(q, `Question ${q.number} has no options.`));
+    return;
+  }
+  if (q.options.length < 2) {
+    issues.push(err(q, `Question ${q.number} has fewer than 2 options.`));
+  }
+  const seenLabels = new Set<string>();
+  q.options.forEach((opt, i) => {
+    if (!opt.label || !VALID_LABELS.includes(opt.label.toUpperCase())) {
+      issues.push(
+        err(
+          q,
+          `Question ${q.number} option #${i + 1} has an invalid label.`,
+        ),
+      );
+    } else {
+      if (seenLabels.has(opt.label.toUpperCase())) {
+        issues.push(
+          err(q, `Question ${q.number} has duplicate option ${opt.label}.`),
+        );
+      }
+      seenLabels.add(opt.label.toUpperCase());
+    }
+    if (!opt.text.trim()) {
+      issues.push(
+        err(
+          q,
+          `Question ${q.number} is missing option ${opt.label || `#${i + 1}`}.`,
+        ),
+      );
+    }
+  });
+  const correctCount = q.options.filter((o) => o.correct).length;
+  if (correctCount === 0) {
+    issues.push(err(q, `Question ${q.number} has no correct answer marked.`));
+  } else if (correctCount > 1) {
+    issues.push(
+      err(q, `Question ${q.number} has ${correctCount} answers marked as correct.`),
+    );
+  }
+}
+
+function validateTrueFalse(q: Question, issues: ValidationIssue[]): void {
+  if (q.options.length !== 2) {
+    issues.push(
+      err(q, `Question ${q.number} (True/False) must have exactly 2 options.`),
+    );
+  }
+  const correctCount = q.options.filter((o) => o.correct).length;
+  if (correctCount !== 1) {
+    issues.push(
+      err(q, `Question ${q.number} (True/False) must have exactly 1 correct answer.`),
+    );
+  }
+}
+
+function validateFillBlank(q: Question, issues: ValidationIssue[]): void {
+  // Fill-in-blank needs a model answer (for answer key / marked mode)
+  if (!q.answer.trim()) {
+    issues.push(
+      err(q, `Question ${q.number} (Fill in the blank) has no answer set.`),
+    );
+  }
+}
+
+function validateDescriptive(_q: Question, _issues: ValidationIssue[]): void {
+  // Descriptive questions only need question text (checked above).
+  // A model answer is optional but recommended — surfaced as a warning only
+  // when answerMode would try to show it.
+}
+
+function err(q: Question, message: string): ValidationIssue {
+  return {
+    severity: "error",
+    message,
+    questionId: q.id,
+    questionNumber: q.number,
   };
 }
 
