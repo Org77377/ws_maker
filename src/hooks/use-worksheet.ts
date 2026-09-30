@@ -80,7 +80,8 @@ interface WorksheetState {
   setCorrectOption: (qId: string, optLabel: string) => void;
   addOption: (qId: string) => void;
   removeOption: (qId: string, optLabel: string) => void;
-  addQuestion: (type?: QuestionType) => void;
+  addQuestion: (type?: QuestionType) => string;
+  addQuestionToSection: (sectionId: string, type?: QuestionType) => string;
   deleteQuestion: (id: string) => void;
   duplicateQuestion: (id: string) => void;
   moveQuestion: (id: string, direction: "up" | "down") => void;
@@ -336,12 +337,32 @@ export const useWorksheetStore = create<WorksheetState>()(
           ),
         })),
 
-      addQuestion: (type) =>
-        set((s) => {
-          const qType: QuestionType = type ?? "mcq";
-          const newQ = createTypedQuestion(s.questions.length + 1, qType);
-          return { questions: [...s.questions, newQ] };
-        }),
+      addQuestion: (type) => {
+        const qType: QuestionType = type ?? "mcq";
+        const newQ = createTypedQuestion(
+          useWorksheetStore.getState().questions.length + 1,
+          qType,
+        );
+        set((s) => ({ questions: [...s.questions, newQ] }));
+        return newQ.id;
+      },
+
+      addQuestionToSection: (sectionId, type) => {
+        const qType: QuestionType = type ?? "mcq";
+        const newQ = createTypedQuestion(
+          useWorksheetStore.getState().questions.length + 1,
+          qType,
+        );
+        set((s) => ({
+          questions: [...s.questions, newQ],
+          sections: s.sections.map((sec) =>
+            sec.id === sectionId
+              ? { ...sec, questionIds: [...sec.questionIds, newQ.id] }
+              : sec,
+          ),
+        }));
+        return newQ.id;
+      },
 
       deleteQuestion: (id) =>
         set((s) => ({

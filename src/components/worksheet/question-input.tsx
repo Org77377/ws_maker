@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useWorksheetStore } from "@/hooks/use-worksheet";
-import { ClipboardList, Sparkles, Eraser, ScrollText } from "lucide-react";
+import { AiQuestionGenerator } from "./ai-question-generator";
+import { ClipboardList, Sparkles, Eraser, ScrollText, Wand2 } from "lucide-react";
 
 export function QuestionInput() {
   const {
@@ -15,6 +17,8 @@ export function QuestionInput() {
     loadExamSample,
     questions,
   } = useWorksheetStore();
+
+  const [aiOpen, setAiOpen] = useState(false);
 
   const handleParse = () => {
     parseInput();
@@ -35,7 +39,17 @@ export function QuestionInput() {
             <ClipboardList className="h-4 w-4 text-accent" />
             Questions
           </CardTitle>
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => setAiOpen(true)}
+              className="h-8 gap-1 bg-accent text-xs font-medium text-accent-foreground hover:bg-accent/90"
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              AI Generate
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -108,6 +122,7 @@ F3. The active cell is identified by a ___ ~ border`}
           </p>
         )}
       </CardContent>
+      <AiQuestionGenerator open={aiOpen} onOpenChange={setAiOpen} />
     </Card>
   );
 }
