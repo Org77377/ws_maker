@@ -72,7 +72,7 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
         ? `<div class="ex-opts">${q.options
             .map(
               (opt) =>
-                `<div class="ex-opt"><span class="ex-opt-label">${escapeHtml(opt.label)}.</span> <span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span></div>`,
+                `<div class="ex-opt"><span class="ex-opt-checkbox">☐</span><span class="ex-opt-label">${escapeHtml(opt.label)}.</span> <span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span></div>`,
             )
             .join("")}</div>`
         : "";
@@ -81,11 +81,13 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
       bodyHtml = `<div class="ex-tf">${q.options
         .map(
           (opt) =>
-            `<span class="ex-tf-opt">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
+            `<span class="ex-tf-opt"><span class="ex-opt-checkbox">☐</span> ${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
         )
         .join(" &nbsp;&nbsp; ")}</div>`;
       break;
     case "fillBlank":
+      // No auto-generated blank — the user types ___ in the question text
+      // themselves. In marked/answerKey mode, append the answer.
       bodyHtml = "";
       break;
     case "descriptive":
@@ -97,13 +99,13 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
       break;
   }
 
+  // For fillBlank, append the answer in marked/answerKey mode.
+  // No auto-generated blank line — the user includes ___ in the question text.
   const questionText =
-    q.type === "fillBlank"
-      ? `${escapeHtml(q.text)}${
-          mode === "marked" || mode === "answerKey"
-            ? ` <i>(${escapeHtml(q.answer)})</i>`
-            : ` <span class="ex-blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`
-        }`
+    q.type === "fillBlank" &&
+    (mode === "marked" || mode === "answerKey") &&
+    q.answer.trim()
+      ? `${escapeHtml(q.text)} <i>(${escapeHtml(q.answer)})</i>`
       : escapeHtml(q.text);
 
   return `
@@ -262,7 +264,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       background: #ffffff;
       color: #000000;
       font-family: 'Tinos', 'Times New Roman', Times, Georgia, serif;
-      font-size: 12pt;
+      font-size: 11.5pt;
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
@@ -275,7 +277,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 1mm;
-      font-size: 12pt;
+      font-size: 12.5pt;
     }
     .ex-meta-table td { padding: 0.5mm 0; vertical-align: top; }
     .ex-meta-left { text-align: left; width: 33%; }
@@ -291,9 +293,9 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     }
 
     /* ===== Instructions ===== */
-    .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
+    .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 6mm; }
     .ex-inst-heading {
-      font-size: 12pt;
+      font-size: 12.5pt;
       font-weight: 700;
       text-decoration: underline;
       margin-bottom: 1.5mm;
@@ -319,24 +321,24 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     }
 
     /* ===== Sections ===== */
-    .ex-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
+    .ex-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 8mm; }
     .ex-section-header {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
       border-bottom: 1px solid #000;
       padding-bottom: 1mm;
-      margin-bottom: 2mm;
-      margin-top: 2mm;
+      margin-bottom: 3mm;
+      margin-top: 3mm;
     }
     .ex-section-title {
-      font-size: 12pt;
+      font-size: 12.5pt;
       font-weight: 700;
       text-decoration: underline;
     }
-    .ex-sec-instr { font-weight: 400; font-size: 11.5pt; }
+    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; }
     .ex-sec-marks {
-      font-size: 11.5pt;
+      font-size: 12.5pt;
       font-weight: 600;
       white-space: nowrap;
     }
@@ -351,13 +353,13 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       display: flex;
       gap: 2mm;
       align-items: baseline;
-      font-size: 12pt;
+      font-size: 11.5pt;
       margin-bottom: 1.5mm;
     }
     .ex-q-num { font-weight: 700; flex: 0 0 auto; min-width: 7mm; }
     .ex-q-body { flex: 1 1 auto; }
     .ex-marks {
-      font-size: 11pt;
+      font-size: 11.5pt;
       font-weight: 600;
       margin-left: 2mm;
       white-space: nowrap;
@@ -367,19 +369,13 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       display: grid;
       grid-template-columns: 1fr 1fr;
       column-gap: 10mm;
-      row-gap: 1mm;
+      row-gap: 1.5mm;
     }
-    .ex-opt { font-size: 11.5pt; }
-    .ex-opt-label { font-weight: 600; margin-right: 1.5mm; }
+    .ex-opt { font-size: 11.5pt; display: flex; align-items: baseline; gap: 1.5mm; }
+    .ex-opt-checkbox { font-size: 11pt; line-height: 1; }
+    .ex-opt-label { font-weight: 600; }
     .ex-tf { padding-left: 8mm; font-size: 11.5pt; }
-    .ex-tf-opt { font-weight: 500; margin-right: 12mm; }
-    .ex-blank {
-      display: inline-block;
-      border-bottom: 1px solid #000;
-      min-width: 25mm;
-      height: 1px;
-      vertical-align: baseline;
-    }
+    .ex-tf-opt { font-weight: 500; margin-right: 12mm; display: inline-flex; align-items: baseline; gap: 1.5mm; }
     .ex-lines { margin: 2mm 0 0 8mm; border-bottom: 1px solid #666; height: 8mm; }
     .ex-ans { margin: 2mm 0 0 8mm; font-size: 11.5pt; }
 

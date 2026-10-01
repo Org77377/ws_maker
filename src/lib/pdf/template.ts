@@ -41,6 +41,7 @@ function optionLine(
   const marker = mode === "marked" && opt.correct ? " *" : "";
   return `
         <div class="opt">
+          <span class="opt-checkbox">☐</span>
           <span class="opt-label">${escapeHtml(opt.label)}.</span>
           <span class="opt-text">${escapeHtml(opt.text)}${marker}</span>
         </div>`;
@@ -56,12 +57,14 @@ function trueFalseLine(q: Question, mode: AnswerMode): string {
       <div class="tf-row">${items}</div>`;
 }
 
-// ---- Fill-in-the-blank: show a blank line; in marked/answerKey mode show the answer ----
+// ---- Fill-in-the-blank: no auto-generated blank line.
+// The user types ___ in the question text themselves.
+// In marked/answerKey mode, append the answer. ----
 function fillBlankLine(q: Question, mode: AnswerMode): string {
   if (mode === "marked" || mode === "answerKey") {
     return ` <span class="fill-answer">(${escapeHtml(q.answer)})</span>`;
   }
-  return ` <span class="fill-blank">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>`;
+  return "";
 }
 
 // ---- Descriptive: show ruled writing space; in answerKey mode show the model answer ----
@@ -402,11 +405,12 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
     }
     .opt {
       display: flex;
-      gap: 2mm;
+      gap: 1.5mm;
       align-items: baseline;
       font-size: 10pt;
       color: #1f2937;
     }
+    .opt-checkbox { font-size: 9.5pt; line-height: 1; }
     .opt-label {
       flex: 0 0 auto;
       min-width: 6mm;
