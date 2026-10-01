@@ -348,14 +348,20 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       line-height: 1;
     }
 
-    /* ===== Sections ===== */
-    .ex-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 8mm; }
+    /* ===== Sections =====
+       NOTE: .ex-section does NOT use break-inside: avoid — if it did, the
+       entire section (header + all questions) would be pushed to the next
+       page when it doesn't fit, leaving page 1 empty after instructions.
+       Individual questions (.ex-question) already have break-inside: avoid. */
+    .ex-section { margin-bottom: 8mm; }
     .ex-section-header {
       border-bottom: 1px solid #000;
       padding-bottom: 1mm;
       margin-bottom: 3mm;
       margin-top: 3mm;
       text-align: left;
+      break-after: avoid;
+      page-break-after: avoid;
     }
     .ex-section-name {
       font-size: 12.5pt;
