@@ -178,7 +178,7 @@ export function createTypedQuestion(
     case "mcq":
       return { ...base, type, marks: 1 };
     case "descriptive":
-      return { ...base, type, marks: 5, options: [] };
+      return { ...base, type, marks: 1, options: [] };
     case "fillBlank":
       return { ...base, type, marks: 1, options: [] };
     case "trueFalse":

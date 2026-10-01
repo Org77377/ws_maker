@@ -206,14 +206,30 @@ export function parseQuestions(input: string): Question[] {
       ];
     }
 
+    // Extract marks from a trailing [N] or (N) suffix in the question text.
+    // e.g. "Explain the CPU. [5]" → text="Explain the CPU.", marks=5
+    let marks = 1;
+    let finalText = text;
+    const marksMatch = text.match(/\s*\[(\d+(?:\.\d+)?)\]\s*$/);
+    if (marksMatch) {
+      marks = parseFloat(marksMatch[1]);
+      finalText = text.slice(0, marksMatch.index).trim();
+    } else {
+      const marksMatch2 = text.match(/\s*\((\d+(?:\.\d+)?)\s*marks?\)\s*$/i);
+      if (marksMatch2) {
+        marks = parseFloat(marksMatch2[1]);
+        finalText = text.slice(0, marksMatch2.index).trim();
+      }
+    }
+
     return {
       id: makeId(),
       number,
       type: rq.type,
-      text,
+      text: finalText,
       options: finalOptions,
       answer: rq.answer,
-      marks: rq.type === "descriptive" ? 5 : 1,
+      marks,
     };
   });
 
