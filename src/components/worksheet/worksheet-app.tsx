@@ -59,10 +59,12 @@ export function WorksheetApp() {
         {/* Mode-specific metadata form */}
         {isExam ? <ExamMetaForm /> : <WorksheetDetailsForm />}
 
-        <QuestionInput />
+        {/* General question input — only in worksheet mode (exam mode uses
+            per-section textareas inside the QuestionEditor) */}
+        {!isExam && <QuestionInput />}
         <ValidationResults />
 
-        {/* Section manager — shown when there are sections or in exam mode */}
+        {/* Section manager — shown in exam mode */}
         {isExam && <SectionManager />}
 
         <QuestionEditor />

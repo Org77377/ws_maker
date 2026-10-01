@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -20,9 +20,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { useWorksheetStore } from "@/hooks/use-worksheet";
 import { QuestionCard } from "./question-card";
-import { PencilLine, Plus, Layers } from "lucide-react";
+import { PencilLine, Plus, Layers, ChevronDown, Wand2, ScrollText } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { AiQuestionGenerator } from "./ai-question-generator";
 import type { Question, QuestionType } from "@/lib/worksheet/types";
 
 export function QuestionEditor() {
@@ -33,7 +36,12 @@ export function QuestionEditor() {
     reorderQuestions,
     addQuestion,
     addQuestionToSection,
+    sectionInputs,
+    setSectionInput,
+    parseSectionInput,
+    loadExamSample,
   } = useWorksheetStore();
+  const [aiOpen, setAiOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -57,22 +65,102 @@ export function QuestionEditor() {
 
   const isExam = mode === "exam";
 
-  // In exam mode, group questions by section
+  // Exam mode with sections → section-wise editor
   if (isExam && sections.length > 0) {
     return (
-      <ExamSectionEditor
-        questions={questions}
-        sections={sections}
-        addQuestionToSection={addQuestionToSection}
-        sensors={sensors}
-        onDragEnd={handleDragEnd}
-        orderedIds={orderedIds}
-        totalCount={questions.length}
-      />
+      <>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setAiOpen(true)}
+            className="h-9 gap-1.5 bg-accent text-xs font-medium text-accent-foreground hover:bg-accent/90"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            AI Generate
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={loadExamSample}
+            className="h-9 gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            Exam Sample
+          </Button>
+        </div>
+        <ExamSectionEditor
+          questions={questions}
+          sections={sections}
+          sectionInputs={sectionInputs}
+          addQuestionToSection={addQuestionToSection}
+          setSectionInput={setSectionInput}
+          parseSectionInput={parseSectionInput}
+          sensors={sensors}
+          onDragEnd={handleDragEnd}
+          orderedIds={orderedIds}
+          totalCount={questions.length}
+        />
+        <AiQuestionGenerator open={aiOpen} onOpenChange={setAiOpen} />
+      </>
     );
   }
 
-  // Worksheet mode (or exam with no sections) — flat list
+  // Exam mode with no sections → prompt to load sample or add sections
+  if (isExam) {
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setAiOpen(true)}
+            className="h-9 gap-1.5 bg-accent text-xs font-medium text-accent-foreground hover:bg-accent/90"
+          >
+            <Wand2 className="h-3.5 w-3.5" />
+            AI Generate
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={loadExamSample}
+            className="h-9 gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ScrollText className="h-3.5 w-3.5" />
+            Exam Sample
+          </Button>
+        </div>
+        <Card
+          id="question-editor"
+          className="border-border/60 shadow-sm scroll-mt-4"
+        >
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold text-primary sm:text-base">
+              <PencilLine className="h-4 w-4 text-accent" />
+              Questions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                No sections yet. Tap{" "}
+                <span className="font-medium text-foreground">
+                  Exam Sample
+                </span>{" "}
+                above to load a sample exam, or add sections in the Sections
+                panel.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+        <AiQuestionGenerator open={aiOpen} onOpenChange={setAiOpen} />
+      </>
+    );
+  }
+
+  // Worksheet mode — flat list
   return (
     <Card
       id="question-editor"
@@ -143,10 +231,13 @@ export function QuestionEditor() {
 interface ExamSectionEditorProps {
   questions: Question[];
   sections: ReturnType<typeof useWorksheetStore.getState>["sections"];
+  sectionInputs: Record<string, string>;
   addQuestionToSection: (
     sectionId: string,
     type?: QuestionType,
   ) => string;
+  setSectionInput: (sectionId: string, text: string) => void;
+  parseSectionInput: (sectionId: string) => void;
   sensors: ReturnType<typeof useSensors>;
   onDragEnd: (event: DragEndEvent) => void;
   orderedIds: string[];
@@ -156,10 +247,12 @@ interface ExamSectionEditorProps {
 function ExamSectionEditor({
   questions,
   sections,
+  sectionInputs,
   addQuestionToSection,
+  setSectionInput,
+  parseSectionInput,
   sensors,
   onDragEnd,
-  orderedIds,
   totalCount,
 }: ExamSectionEditorProps) {
   // Build a map of sectionId → questions in that section
@@ -206,10 +299,11 @@ function ExamSectionEditor({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Render each section with its questions */}
+        {/* Render each section with its own textarea + questions */}
         {sections.map((sec, i) => {
           const sqs = sectionQuestions.get(sec.id) || [];
           const secOrderedIds = sqs.map((q) => q.id);
+          const secInput = sectionInputs[sec.id] || "";
           return (
             <div
               key={sec.id}
@@ -244,14 +338,27 @@ function ExamSectionEditor({
                   className="h-8 shrink-0 gap-1 text-xs text-accent hover:bg-accent/10 hover:text-accent"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  Add to section
+                  Add
                 </Button>
               </div>
+
+              {/* Per-section textarea for pasting questions */}
+              <SectionTextArea
+                sectionId={sec.id}
+                value={secInput}
+                onChange={(text) => setSectionInput(sec.id, text)}
+                onParse={() => parseSectionInput(sec.id)}
+                questionCount={sqs.length}
+              />
+
               {/* Section questions */}
               {sqs.length === 0 ? (
-                <p className="py-3 text-center text-xs text-muted-foreground">
-                  No questions in this section yet. Tap &ldquo;Add to
-                  section&rdquo; or assign questions from the main list.
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  Paste questions above and tap{" "}
+                  <span className="font-medium text-foreground">
+                    Parse
+                  </span>{" "}
+                  to add them to this section.
                 </p>
               ) : (
                 <DndContext
@@ -337,5 +444,70 @@ function ExamSectionEditor({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ---- Per-section textarea for pasting questions ----
+
+interface SectionTextAreaProps {
+  sectionId: string;
+  value: string;
+  onChange: (text: string) => void;
+  onParse: () => void;
+  questionCount: number;
+}
+
+function SectionTextArea({
+  value,
+  onChange,
+  onParse,
+}: SectionTextAreaProps) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="mb-2 rounded-md border border-border/40 bg-background">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left"
+      >
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          Paste questions for this section
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180",
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="space-y-2 px-2.5 pb-2.5">
+          <Textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={`M1. Question?\nA. opt\nB. opt *\nC. opt\nD. opt`}
+            className="min-h-[80px] resize-y text-[13px] leading-relaxed scroll-thin"
+            spellCheck={false}
+          />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] text-muted-foreground">
+              {value.trim()
+                ? `${value.trim().split(/\n\s*\n/).filter(Boolean).length} block(s) detected`
+                : "Type prefixes: M/T/F/D · * marks correct"}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={onParse}
+              disabled={!value.trim()}
+              className="h-8 gap-1 bg-primary text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Parse
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

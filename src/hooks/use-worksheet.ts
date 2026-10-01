@@ -38,6 +38,8 @@ interface WorksheetState {
   worksheetHeading: string;
   // Section groupings
   sections: Section[];
+  // Per-section raw text inputs (exam mode) — key = section id, value = text
+  sectionInputs: Record<string, string>;
   // Exam metadata
   examMeta: ExamMeta;
   // UI state
@@ -58,6 +60,9 @@ interface WorksheetState {
   updateSection: (id: string, patch: Partial<Section>) => void;
   deleteSection: (id: string) => void;
   assignQuestionToSection: (qId: string, sectionId: string | null) => void;
+  // Per-section text input + parse (exam mode)
+  setSectionInput: (sectionId: string, text: string) => void;
+  parseSectionInput: (sectionId: string) => void;
 
   // Actions — input
   setRawInput: (input: string) => void;
@@ -129,6 +134,7 @@ const DEFAULTS = {
   answerMode: "none" as AnswerMode,
   worksheetHeading: "",
   sections: [] as Section[],
+  sectionInputs: {} as Record<string, string>,
   examMeta: createDefaultExamMeta(),
   hasParsed: false,
   isGenerating: false,
@@ -219,6 +225,47 @@ export const useWorksheetStore = create<WorksheetState>()(
             return { ...sec, questionIds: filtered };
           }),
         })),
+
+      // ---- Per-section input (exam mode) ----
+      setSectionInput: (sectionId, text) =>
+        set((s) => ({
+          sectionInputs: { ...s.sectionInputs, [sectionId]: text },
+        })),
+
+      parseSectionInput: (sectionId) => {
+        const text = get().sectionInputs[sectionId] || "";
+        if (!text.trim()) return;
+        // Parse the text into questions
+        const newQuestions = parseQuestions(text);
+        if (newQuestions.length === 0) return;
+
+        // First, remove any old questions that were in this section
+        // (so re-parsing replaces, not duplicates)
+        const section = get().sections.find((s) => s.id === sectionId);
+        const oldIds = section?.questionIds || [];
+
+        set((s) => {
+          // Remove old section questions from the questions array
+          const remaining = s.questions.filter(
+            (q) => !oldIds.includes(q.id),
+          );
+          // Add new questions at the end
+          const combined = [...remaining, ...newQuestions];
+          // Renumber
+          const renumbered = renumber(combined);
+          // Assign the new question IDs to this section
+          const newIds = newQuestions.map((q) => q.id);
+          return {
+            questions: renumbered,
+            sections: s.sections.map((sec) =>
+              sec.id === sectionId
+                ? { ...sec, questionIds: newIds }
+                : sec,
+            ),
+            hasParsed: true,
+          };
+        });
+      },
 
       // ---- Input ----
       setRawInput: (input) => set({ rawInput: input }),
@@ -553,6 +600,7 @@ D5. Explain the difference between hardware and software with examples.
         answerMode: s.answerMode,
         worksheetHeading: s.worksheetHeading,
         sections: s.sections,
+        sectionInputs: s.sectionInputs,
         examMeta: s.examMeta,
         hasParsed: s.hasParsed,
       }),
