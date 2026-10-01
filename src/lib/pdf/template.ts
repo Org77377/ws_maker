@@ -41,7 +41,7 @@ function optionLine(
   const marker = mode === "marked" && opt.correct ? " *" : "";
   return `
         <div class="opt">
-          <span class="opt-checkbox">☐</span>
+          <span class="opt-checkbox"></span>
           <span class="opt-label">${escapeHtml(opt.label)}.</span>
           <span class="opt-text">${escapeHtml(opt.text)}${marker}</span>
         </div>`;
@@ -410,7 +410,15 @@ export function buildWorksheetHtml(input: PdfTemplateInput): string {
       font-size: 10pt;
       color: #1f2937;
     }
-    .opt-checkbox { font-size: 9.5pt; line-height: 1; }
+    .opt-checkbox {
+      display: inline-block;
+      width: 3mm;
+      height: 3mm;
+      border: 1px solid #111827;
+      flex-shrink: 0;
+      position: relative;
+      top: 0.5mm;
+    }
     .opt-label {
       flex: 0 0 auto;
       min-width: 6mm;

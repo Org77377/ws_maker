@@ -14,7 +14,7 @@ import { useWorksheetStore } from "@/hooks/use-worksheet";
 import { useGeneratePdf } from "@/hooks/use-generate-pdf";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileText, Loader2, PencilLine, Eye, Printer } from "lucide-react";
+import { FileText, Loader2, PencilLine, Eye, Printer, FileType } from "lucide-react";
 
 // SSR-safe "mounted" check without setState-in-effect.
 const emptySubscribe = () => () => {};
@@ -70,25 +70,36 @@ export function WorksheetApp() {
         <QuestionEditor />
         <SettingsPanel />
 
-        {/* Desktop generate button */}
-        <Button
-          type="button"
-          onClick={generate}
-          disabled={!canGenerate || isGenerating}
-          className="hidden h-12 w-full bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 lg:flex"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Generating your {isExam ? "exam paper" : "worksheet"}...
-            </>
-          ) : (
-            <>
-              <Printer className="mr-2 h-5 w-5" />
-              Generate PDF
-            </>
-          )}
-        </Button>
+        {/* Desktop generate buttons */}
+        <div className="hidden gap-2 lg:flex">
+          <Button
+            type="button"
+            onClick={() => generate("pdf")}
+            disabled={!canGenerate || isGenerating}
+            className="h-12 flex-1 gap-2 bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Printer className="h-5 w-5" />
+                Generate PDF
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => generate("docx")}
+            disabled={!canGenerate || isGenerating}
+            className="h-12 gap-2 bg-accent px-6 text-base font-semibold text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+          >
+            <FileType className="h-5 w-5" />
+            DOCX
+          </Button>
+        </div>
       </div>
 
       {/* ===== Right: live A4 preview ===== */}
@@ -109,7 +120,7 @@ export function WorksheetApp() {
         <div className="flex items-stretch gap-2 p-2">
           <Button
             type="button"
-            onClick={generate}
+            onClick={() => generate("pdf")}
             disabled={!canGenerate || isGenerating}
             className="h-12 flex-1 gap-2 rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40"
           >
@@ -121,9 +132,18 @@ export function WorksheetApp() {
             ) : (
               <>
                 <FileText className="h-4 w-4" />
-                Generate PDF
+                PDF
               </>
             )}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => generate("docx")}
+            disabled={!canGenerate || isGenerating}
+            className="h-12 gap-2 rounded-xl bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 disabled:opacity-40"
+          >
+            <FileType className="h-4 w-4" />
+            DOCX
           </Button>
 
           <div className="flex shrink-0 items-center gap-0.5 rounded-xl bg-muted p-0.5">

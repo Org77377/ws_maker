@@ -72,7 +72,7 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
         ? `<div class="ex-opts">${q.options
             .map(
               (opt) =>
-                `<div class="ex-opt"><span class="ex-opt-checkbox">☐</span><span class="ex-opt-label">${escapeHtml(opt.label)}.</span> <span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span></div>`,
+                `<div class="ex-opt"><span class="ex-opt-checkbox"></span><span class="ex-opt-label">${escapeHtml(opt.label)}.</span> <span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span></div>`,
             )
             .join("")}</div>`
         : "";
@@ -81,7 +81,7 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
       bodyHtml = `<div class="ex-tf">${q.options
         .map(
           (opt) =>
-            `<span class="ex-tf-opt"><span class="ex-opt-checkbox">☐</span> ${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
+            `<span class="ex-tf-opt"><span class="ex-opt-checkbox"></span> ${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
         )
         .join(" &nbsp;&nbsp; ")}</div>`;
       break;
@@ -414,7 +414,15 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       row-gap: 1.5mm;
     }
     .ex-opt { font-size: 11.5pt; display: flex; align-items: baseline; gap: 1.5mm; }
-    .ex-opt-checkbox { font-size: 11pt; line-height: 1; }
+    .ex-opt-checkbox {
+      display: inline-block;
+      width: 3.5mm;
+      height: 3.5mm;
+      border: 1px solid #000;
+      flex-shrink: 0;
+      position: relative;
+      top: 0.5mm;
+    }
     .ex-opt-label { font-weight: 600; }
     .ex-tf { padding-left: 8mm; font-size: 11.5pt; }
     .ex-tf-opt { font-weight: 500; margin-right: 12mm; display: inline-flex; align-items: baseline; gap: 1.5mm; }

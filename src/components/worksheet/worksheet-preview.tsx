@@ -9,7 +9,7 @@ import { useGeneratePdf } from "@/hooks/use-generate-pdf";
 import { buildWorksheetHtml } from "@/lib/pdf/template";
 import { buildExamHtml } from "@/lib/pdf/exam-template";
 import type { Worksheet } from "@/lib/worksheet/types";
-import { Eye, Printer, Loader2 } from "lucide-react";
+import { Eye, Printer, Loader2, FileType } from "lucide-react";
 
 // A4 width in CSS pixels at 96dpi: 210mm ≈ 793.7px
 const A4_WIDTH_PX = 794;
@@ -112,10 +112,6 @@ export function WorksheetPreview() {
     measure();
   }, []);
 
-  const handleGenerate = () => {
-    generate();
-  };
-
   return (
     <Card className="border-border/60 shadow-sm lg:sticky lg:top-4">
       <CardHeader className="pb-3">
@@ -161,25 +157,36 @@ export function WorksheetPreview() {
           </div>
         </div>
 
-        {/* Generate button — desktop only (mobile uses the bottom tab bar) */}
-        <Button
-          type="button"
-          onClick={handleGenerate}
-          disabled={isGenerating || worksheet.questions.length === 0}
-          className="mt-4 hidden h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 lg:flex"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Generating your worksheet...
-            </>
-          ) : (
-            <>
-              <Printer className="mr-2 h-4 w-4" />
-              Generate PDF
-            </>
-          )}
-        </Button>
+        {/* Generate buttons — desktop only (mobile uses the bottom tab bar) */}
+        <div className="mt-4 hidden gap-2 lg:flex">
+          <Button
+            type="button"
+            onClick={() => generate("pdf")}
+            disabled={isGenerating || worksheet.questions.length === 0}
+            className="h-11 flex-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Printer className="mr-2 h-4 w-4" />
+                Generate PDF
+              </>
+            )}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => generate("docx")}
+            disabled={isGenerating || worksheet.questions.length === 0}
+            className="h-11 gap-2 bg-accent px-6 text-primary-foreground hover:bg-accent/90 disabled:opacity-50"
+          >
+            <FileType className="h-4 w-4" />
+            DOCX
+          </Button>
+        </div>
         {worksheet.questions.length === 0 && (
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Add or parse questions to enable PDF generation.

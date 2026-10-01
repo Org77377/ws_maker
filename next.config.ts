@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     "puppeteer-core",
     "@sparticuz/chromium",
     "sharp",
+    "html-to-docx",
   ],
   allowedDevOrigins: ["*.space-z.ai"],
 };
