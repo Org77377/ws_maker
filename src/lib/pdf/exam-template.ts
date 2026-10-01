@@ -64,7 +64,7 @@ function buildMarksCarriage(section: {
 }
 
 function examQuestionBlock(q: Question, mode: AnswerMode): string {
-  const marks = q.marks ? `<span class="ex-marks">${q.marks}</span>` : "";
+  const marks = q.marks ? `<span class="ex-marks">(${q.marks})</span>` : "";
   let bodyHtml = "";
   switch (q.type) {
     case "mcq":
@@ -201,10 +201,13 @@ function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
   }
 
   for (const sec of sections) {
-    // Section header: "Section A" centered, instruction on left with bullet
+    // Section header layout:
+    //   Line 1: "Section A" — CENTERED
+    //   Line 2: "• Multiple Choice Questions (answer any 4)" on LEFT,
+    //           "40 × 0.5 = 20" on RIGHT
     const instruction = sec.instruction
-      ? `<span class="ex-sec-instr"><span class="ex-bullet">•</span> ${escapeHtml(sec.instruction)}</span>`
-      : "";
+      ? `<span class="ex-sec-instr">• ${escapeHtml(sec.instruction)}</span>`
+      : '<span class="ex-sec-instr">&nbsp;</span>';
     const carriage = buildMarksCarriage(sec);
     const carriageHtml = carriage
       ? `<span class="ex-sec-marks">${escapeHtml(carriage)}</span>`
@@ -366,7 +369,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       justify-content: space-between;
       align-items: baseline;
     }
-    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; position: relative; padding-left: 4mm; }
+    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; }
     .ex-sec-marks {
       font-size: 12.5pt;
       font-weight: 600;
