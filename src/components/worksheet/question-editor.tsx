@@ -99,7 +99,6 @@ export function QuestionEditor() {
           parseSectionInput={parseSectionInput}
           sensors={sensors}
           onDragEnd={handleDragEnd}
-          orderedIds={orderedIds}
           totalCount={questions.length}
         />
         <AiQuestionGenerator open={aiOpen} onOpenChange={setAiOpen} />
@@ -240,7 +239,6 @@ interface ExamSectionEditorProps {
   parseSectionInput: (sectionId: string) => void;
   sensors: ReturnType<typeof useSensors>;
   onDragEnd: (event: DragEndEvent) => void;
-  orderedIds: string[];
   totalCount: number;
 }
 
@@ -413,7 +411,7 @@ function ExamSectionEditor({
               onDragEnd={onDragEnd}
             >
               <SortableContext
-                items={orderedIds}
+                items={(sectionQuestions.get("__unassigned") || []).map((q) => q.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-2">
