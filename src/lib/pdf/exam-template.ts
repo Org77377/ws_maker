@@ -355,6 +355,7 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       padding-bottom: 1mm;
       margin-bottom: 3mm;
       margin-top: 3mm;
+      text-align: left;
     }
     .ex-section-name {
       font-size: 12.5pt;
@@ -368,12 +369,14 @@ export function buildExamHtml(input: ExamTemplateInput): string {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      text-align: left;
     }
-    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; }
+    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; text-align: left; }
     .ex-sec-marks {
       font-size: 12.5pt;
       font-weight: 600;
       white-space: nowrap;
+      text-align: right;
     }
 
     /* ===== Questions ===== */
