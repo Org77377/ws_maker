@@ -64,7 +64,7 @@ function buildMarksCarriage(section: {
 }
 
 function examQuestionBlock(q: Question, mode: AnswerMode): string {
-  const marks = q.marks ? `<span class="ex-marks">[${q.marks}]</span>` : "";
+  const marks = q.marks ? `<span class="ex-marks">${q.marks}</span>` : "";
   let bodyHtml = "";
   switch (q.type) {
     case "mcq":
@@ -131,10 +131,11 @@ function examHeader(worksheet: Worksheet, headerImage: string | undefined): stri
   const date = escapeHtml(m.date || "");
 
   // Info table: 3 columns (left=Grade+Time, center=Subject, right=Mark+Date)
-  // Using a table for rock-solid alignment regardless of content length.
+  // Title is below the logo, above the meta table.
   return `
     <header class="ex-header">
       <div class="ex-banner-wrap">${imgHtml}</div>
+      <h1 class="ex-title">${title}</h1>
       <table class="ex-meta-table">
         <tr>
           <td class="ex-meta-left"><b>Grade:</b> ${grade}</td>
@@ -147,20 +148,21 @@ function examHeader(worksheet: Worksheet, headerImage: string | undefined): stri
           <td class="ex-meta-right"><b>Date :</b> ${date}</td>
         </tr>
       </table>
-      <h1 class="ex-title">${title}</h1>
     </header>`;
 }
 
 function instructionsBlock(worksheet: Worksheet): string {
+  // Use inline bullet character (•) instead of CSS ::before pseudo-elements,
+  // which don't render reliably in Playwright/Puppeteer PDF output.
   const items = worksheet.examMeta.instructions
     .filter((i) => i.trim())
-    .map((ins) => `<li>${escapeHtml(ins)}</li>`)
+    .map((ins) => `<li><span class="ex-bullet">•</span> ${escapeHtml(ins)}</li>`)
     .join("");
   if (!items) return "";
   return `
     <div class="ex-instructions">
-      <div class="ex-inst-heading">GENERAL INSTRUCTIONS</div>
       <hr class="ex-hr" />
+      <div class="ex-inst-heading">GENERAL INSTRUCTIONS</div>
       <ul class="ex-inst-list">${items}</ul>
       <hr class="ex-hr" />
     </div>`;
@@ -178,10 +180,30 @@ function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
   const parts: string[] = [];
   const assignedIds = new Set<string>();
 
+  // Renumber questions in visual order (section by section) so numbering
+  // is sequential 1, 2, 3... regardless of how questions were added.
+  let visualNumber = 1;
+  const renumberedQuestions = new Map<string, Question>();
+
   for (const sec of sections) {
-    // Section header row: title + instruction (left) | marks carriage (right)
+    for (const qId of sec.questionIds) {
+      const q = questions.find((qq) => qq.id === qId);
+      if (q) {
+        renumberedQuestions.set(qId, { ...q, number: visualNumber++ });
+      }
+    }
+  }
+  // Unassigned questions continue numbering
+  for (const q of questions) {
+    if (!renumberedQuestions.has(q.id)) {
+      renumberedQuestions.set(q.id, { ...q, number: visualNumber++ });
+    }
+  }
+
+  for (const sec of sections) {
+    // Section header: "Section A" centered, instruction on left with bullet
     const instruction = sec.instruction
-      ? ` <span class="ex-sec-instr">${escapeHtml(sec.instruction)}</span>`
+      ? `<span class="ex-sec-instr"><span class="ex-bullet">•</span> ${escapeHtml(sec.instruction)}</span>`
       : "";
     const carriage = buildMarksCarriage(sec);
     const carriageHtml = carriage
@@ -191,15 +213,15 @@ function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
     parts.push(
       `<div class="ex-section">` +
         `<div class="ex-section-header">` +
-          `<span class="ex-section-title">${escapeHtml(sec.title)}${instruction}</span>` +
-          carriageHtml +
+          `<div class="ex-section-name">${escapeHtml(sec.title)}</div>` +
+          `<div class="ex-section-sub">${instruction}${carriageHtml}</div>` +
         `</div>`,
     );
 
-    // Render questions assigned to this section
+    // Render questions assigned to this section (with renumbered numbers)
     if (sec.questionIds.length > 0) {
       for (const qId of sec.questionIds) {
-        const q = questions.find((qq) => qq.id === qId);
+        const q = renumberedQuestions.get(qId);
         if (q) {
           parts.push(examQuestionBlock(q, mode));
           assignedIds.add(qId);
@@ -212,7 +234,10 @@ function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
 
   // Render any unassigned questions (not in a section)
   const unassigned = questions.filter((q) => !assignedIds.has(q.id));
-  for (const q of unassigned) parts.push(examQuestionBlock(q, mode));
+  for (const q of unassigned) {
+    const rq = renumberedQuestions.get(q.id) || q;
+    parts.push(examQuestionBlock(rq, mode));
+  }
 
   return parts.join("\n");
 }
@@ -252,10 +277,11 @@ export function buildExamHtml(input: ExamTemplateInput): string {
   <link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
   <style>
     /* ===== A4 page setup =====
+       Top margin reduced to 8mm so questions start on page 1.
        Bottom margin is 20mm to accommodate the PDF engine footer. */
     @page {
       size: A4 portrait;
-      margin: 12mm 18mm 20mm 18mm;
+      margin: 8mm 18mm 20mm 18mm;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -271,8 +297,16 @@ export function buildExamHtml(input: ExamTemplateInput): string {
 
     /* ===== Header (page 1 only) ===== */
     .ex-header { text-align: center; margin-bottom: 3mm; break-after: avoid; page-break-after: avoid; }
-    .ex-banner-wrap { width: 100%; text-align: center; margin-bottom: 3mm; }
+    .ex-banner-wrap { width: 100%; text-align: center; margin-bottom: 2mm; }
     .ex-banner { max-width: 100%; max-height: 30mm; height: auto; object-fit: contain; }
+    .ex-title {
+      font-size: 16pt;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: underline;
+      margin: 1mm 0 2mm 0;
+      letter-spacing: 0.02em;
+    }
     .ex-meta-table {
       width: 100%;
       border-collapse: collapse;
@@ -283,60 +317,56 @@ export function buildExamHtml(input: ExamTemplateInput): string {
     .ex-meta-left { text-align: left; width: 33%; }
     .ex-meta-center { text-align: center; width: 34%; }
     .ex-meta-right { text-align: right; width: 33%; }
-    .ex-title {
-      font-size: 18pt;
-      font-weight: 700;
-      text-align: center;
-      text-decoration: underline;
-      margin: 2mm 0 1mm 0;
-      letter-spacing: 0.02em;
-    }
 
     /* ===== Instructions ===== */
-    .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 6mm; }
+    .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 5mm; }
+    .ex-hr { border: 0; border-top: 1px solid #000; margin: 1mm 0; width: 100%; }
     .ex-inst-heading {
       font-size: 12.5pt;
       font-weight: 700;
       text-decoration: underline;
-      margin-bottom: 1.5mm;
+      margin: 1mm 0 1.5mm 0;
     }
-    .ex-hr { border: 0; border-top: 1px solid #000; margin: 1mm 0; }
     .ex-inst-list {
       list-style: none;
-      padding-left: 6mm;
-      margin: 1.5mm 0;
+      padding: 0;
+      margin: 0 0 0 3mm;
     }
     .ex-inst-list li {
-      position: relative;
-      padding-left: 5mm;
+      padding-left: 4mm;
       margin-bottom: 0.8mm;
       font-size: 11.5pt;
+      position: relative;
     }
-    .ex-inst-list li::before {
-      content: "◆";
+    .ex-bullet {
       position: absolute;
       left: 0;
-      font-size: 8pt;
-      top: 2pt;
+      font-size: 12pt;
+      line-height: 1;
     }
 
     /* ===== Sections ===== */
     .ex-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 8mm; }
     .ex-section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
       border-bottom: 1px solid #000;
       padding-bottom: 1mm;
       margin-bottom: 3mm;
       margin-top: 3mm;
     }
-    .ex-section-title {
+    .ex-section-name {
       font-size: 12.5pt;
       font-weight: 700;
+      text-align: center;
       text-decoration: underline;
+      margin-bottom: 1mm;
     }
-    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; }
+    .ex-section-sub {
+      font-size: 12.5pt;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; position: relative; padding-left: 4mm; }
     .ex-sec-marks {
       font-size: 12.5pt;
       font-weight: 600;
