@@ -8,6 +8,7 @@ import { useWorksheetStore } from "@/hooks/use-worksheet";
 import { useGeneratePdf } from "@/hooks/use-generate-pdf";
 import { buildWorksheetHtml } from "@/lib/pdf/template";
 import { buildExamHtml } from "@/lib/pdf/exam-template";
+import { PRINT_PRESETS } from "@/lib/pdf/page-geometry";
 import type { Worksheet } from "@/lib/worksheet/types";
 import { Eye, Printer, Loader2, FileType } from "lucide-react";
 
@@ -70,18 +71,23 @@ export function WorksheetPreview() {
     [worksheet.schoolHeaderImage],
   );
 
+  const printPreset = useWorksheetStore((s) => s.printPreset);
+  const marksPosition = useWorksheetStore((s) => s.marksPosition);
+
   const html = useMemo(
     () =>
       worksheet.mode === "exam"
         ? buildExamHtml({
             worksheet,
             headerImage: headerUrl || undefined,
+            preset: PRINT_PRESETS[printPreset] || PRINT_PRESETS.standard,
+            marksPosition,
           })
         : buildWorksheetHtml({
             worksheet,
             headerImage: headerUrl || undefined,
           }),
-    [worksheet, headerUrl],
+    [worksheet, headerUrl, printPreset, marksPosition],
   );
 
   const scale = Math.min(1, containerWidth / A4_WIDTH_PX);

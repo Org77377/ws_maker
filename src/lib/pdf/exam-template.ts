@@ -1,28 +1,31 @@
-// CBSE-style Mid-Term Examination paper template.
+// CBSE-style Examination paper template — professional, print-first layout.
 //
-// Layout (replicates uploaded MT_Subject_Grade_8.docx):
-//   - School banner image at top (page 1 only)
-//   - "Mid-Term Examination" centered, bold, underlined, serif
-//   - Info table (3 columns):
-//       Left:   Grade + Time  (two lines stacked)
-//       Center: Subject
-//       Right:  Mark + Date   (two lines stacked)
-//   - "GENERAL INSTRUCTIONS" heading, underlined + HR
-//   - Instruction bullet points (diamond ◆)
-//   - HR line
-//   - Sections: each with title + instruction on left, marks carriage on right
-//       e.g. "Section A — Answer the following (any 5)    40 x 0.5 = 20"
-//     followed by the section's questions
-//   - Footer (every page): "SPS_<year>_<term>_G.<grade>_QP_<subject>" (left)
-//       + "Page X of Y" (right), thin line above
-//   - Serif font (Tinos / Times New Roman) throughout
+// Key improvements:
+// - CSS grid for questions: [number 9mm | text 1fr | marks 10mm] — perfect alignment
+// - No CSS checkbox; MCQ uses bold "A." "B." letters in 2-col grid (1-col if options are long)
+// - Self-hosted fonts via @font-face (Tinos) + system fallback for Indic scripts
+// - CSS variables for spacing tokens (--gap-q, --gap-opt) controlled by presets
+// - Section heading centered; title + marks on a sub-row (left/right)
+// - Section heading + first question kept together (break-after: avoid)
+// - Individual questions: break-inside: avoid (never split)
+// - Footer padding matches @page margins (via shared constants)
 
 import { AnswerMode, Question, Worksheet } from "../worksheet/types";
+import {
+  PAGE_CSS,
+  PAGE_MARGINS,
+  FOOTER_PADDING_LEFT,
+  FOOTER_PADDING_RIGHT,
+  type PrintPreset,
+} from "./page-geometry";
 
 export interface ExamTemplateInput {
   worksheet: Worksheet;
   headerImage?: string;
   previewMode?: boolean;
+  preset?: PrintPreset;
+  /** Marks position: "right" (default) or "left" */
+  marksPosition?: "left" | "right";
 }
 
 function escapeHtml(str: string): string {
@@ -34,60 +37,59 @@ function escapeHtml(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Build the footer code: SPS_<year>_<term>_G.<grade>_QP_<subject>.
- *  Subject is auto-filled from the examMeta.subject (or worksheet.subject). */
 function buildFooterCode(worksheet: Worksheet): string {
   const m = worksheet.examMeta;
   const year = (m.footerYear || "").replace(/\s+/g, "");
   const term = (m.footerTerm || "").replace(/\s+/g, "");
   const grade = (m.grade || "").replace(/\s+/g, "");
-  const subject = (m.subject || worksheet.subject || "Subject")
-    .replace(/\s+/g, "");
+  const subject = (m.subject || worksheet.subject || "Subject").replace(/\s+/g, "");
   return `SPS_${year}_${term}_G.${grade}_QP_${subject}`;
 }
 
-/** Compute the marks carriage, e.g. "40 x 0.5 = 20".
- *  Falls back to just the total marks if per-question data is missing. */
 function buildMarksCarriage(section: {
-  questionCount: string;
-  perQuestionMarks: string;
-  marks: string;
+  questionCount: string; perQuestionMarks: string; marks: string;
 }): string {
   const qc = (section.questionCount || "").trim();
   const pqm = (section.perQuestionMarks || "").trim();
   const total = (section.marks || "").trim();
-  if (qc && pqm && total) {
-    return `${qc} × ${pqm} = ${total}`;
-  }
+  if (qc && pqm && total) return `${qc} × ${pqm} = ${total}`;
   if (total) return total;
   return "";
 }
 
-function examQuestionBlock(q: Question, mode: AnswerMode): string {
-  const marks = q.marks ? `<span class="ex-marks">(${q.marks})</span>` : "";
+/** Detect if any MCQ option exceeds ~45 chars → use single-column layout */
+function shouldUseSingleColumn(options: { text: string }[]): boolean {
+  return options.some((o) => o.text.length > 45);
+}
+
+function examQuestionBlock(q: Question, mode: AnswerMode, marksLeft: boolean): string {
+  const marksHtml = q.marks ? `<span class="ex-marks">(${q.marks})</span>` : "";
+
   let bodyHtml = "";
   switch (q.type) {
-    case "mcq":
+    case "mcq": {
+      const single = shouldUseSingleColumn(q.options);
+      const cols = single ? "1fr" : "1fr 1fr";
       bodyHtml = q.options.length
-        ? `<div class="ex-opts">${q.options
-            .map(
-              (opt) =>
-                `<div class="ex-opt"><span class="ex-opt-checkbox"></span><span class="ex-opt-label">${escapeHtml(opt.label)}.</span> <span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span></div>`,
+        ? `<div class="ex-opts" style="grid-template-columns:${cols}">${q.options
+            .map((opt) =>
+              `<div class="ex-opt">` +
+              `<span class="ex-opt-label">${escapeHtml(opt.label)}.</span>` +
+              `<span class="ex-opt-text">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>` +
+              `</div>`,
             )
             .join("")}</div>`
         : "";
       break;
+    }
     case "trueFalse":
       bodyHtml = `<div class="ex-tf">${q.options
-        .map(
-          (opt) =>
-            `<span class="ex-tf-opt"><span class="ex-opt-checkbox"></span> ${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
+        .map((opt) =>
+          `<span class="ex-tf-opt">${escapeHtml(opt.text)}${mode === "marked" && opt.correct ? " *" : ""}</span>`,
         )
         .join(" &nbsp;&nbsp; ")}</div>`;
       break;
     case "fillBlank":
-      // No auto-generated blank — the user types ___ in the question text
-      // themselves. In marked/answerKey mode, append the answer.
       bodyHtml = "";
       break;
     case "descriptive":
@@ -99,29 +101,33 @@ function examQuestionBlock(q: Question, mode: AnswerMode): string {
       break;
   }
 
-  // For fillBlank, append the answer in marked/answerKey mode.
-  // No auto-generated blank line — the user includes ___ in the question text.
   const questionText =
-    q.type === "fillBlank" &&
-    (mode === "marked" || mode === "answerKey") &&
-    q.answer.trim()
+    q.type === "fillBlank" && (mode === "marked" || mode === "answerKey") && q.answer.trim()
       ? `${escapeHtml(q.text)} <i>(${escapeHtml(q.answer)})</i>`
       : escapeHtml(q.text);
 
+  // CSS grid: [number | text | marks] — marks on right by default, left if configured
+  const marksCol = marksLeft
+    ? `<span class="ex-q-marks ex-q-marks--left">${marksHtml}</span>`
+    : `<span class="ex-q-marks">${marksHtml}</span>`;
+  const numCol = `<span class="ex-q-num">${q.number}.</span>`;
+  const textCol = `<span class="ex-q-body">${questionText}</span>`;
+
+  // Grid template: if marks on left, put marks first
+  const gridTemplate = marksLeft
+    ? "10mm 1fr 9mm"
+    : "9mm 1fr 10mm";
+
   return `
-      <div class="ex-question">
-        <div class="ex-q-text">
-          <span class="ex-q-num">${q.number}.</span>
-          <span class="ex-q-body">${questionText}</span>${marks}
-        </div>${bodyHtml}
-      </div>`;
+      <div class="ex-question" style="display:grid;grid-template-columns:${gridTemplate};gap:0;">
+        ${marksLeft ? marksCol + numCol + textCol : numCol + textCol + marksCol}
+      </div>${bodyHtml}`;
 }
 
 function examHeader(worksheet: Worksheet, headerImage: string | undefined): string {
   const imgHtml = headerImage
     ? `<img class="ex-banner" src="${escapeHtml(headerImage)}" alt="School Header" />`
     : "";
-
   const m = worksheet.examMeta;
   const title = escapeHtml(m.examTitle || "Mid-Term Examination");
   const grade = escapeHtml(m.grade || "");
@@ -130,8 +136,6 @@ function examHeader(worksheet: Worksheet, headerImage: string | undefined): stri
   const duration = escapeHtml(m.duration || "3 Hours");
   const date = escapeHtml(m.date || "");
 
-  // Info table: 3 columns (left=Grade+Time, center=Subject, right=Mark+Date)
-  // Title is below the logo, above the meta table.
   return `
     <header class="ex-header">
       <div class="ex-banner-wrap">${imgHtml}</div>
@@ -152,11 +156,9 @@ function examHeader(worksheet: Worksheet, headerImage: string | undefined): stri
 }
 
 function instructionsBlock(worksheet: Worksheet): string {
-  // Use inline bullet character (•) instead of CSS ::before pseudo-elements,
-  // which don't render reliably in Playwright/Puppeteer PDF output.
   const items = worksheet.examMeta.instructions
     .filter((i) => i.trim())
-    .map((ins) => `<li><span class="ex-bullet">•</span> ${escapeHtml(ins)}</li>`)
+    .map((ins) => `<li>• ${escapeHtml(ins)}</li>`)
     .join("");
   if (!items) return "";
   return `
@@ -168,50 +170,34 @@ function instructionsBlock(worksheet: Worksheet): string {
     </div>`;
 }
 
-function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
+function sectionsBlock(worksheet: Worksheet, mode: AnswerMode, marksLeft: boolean): string {
   const questions = worksheet.questions;
   const sections = worksheet.sections;
-
-  // If no sections defined, just render all questions flat
   if (sections.length === 0) {
-    return questions.map((q) => examQuestionBlock(q, mode)).join("\n");
+    return questions.map((q) => examQuestionBlock(q, mode, marksLeft)).join("\n");
   }
 
   const parts: string[] = [];
   const assignedIds = new Set<string>();
-
-  // Renumber questions in visual order (section by section) so numbering
-  // is sequential 1, 2, 3... regardless of how questions were added.
   let visualNumber = 1;
-  const renumberedQuestions = new Map<string, Question>();
+  const renumbered = new Map<string, Question>();
 
   for (const sec of sections) {
     for (const qId of sec.questionIds) {
       const q = questions.find((qq) => qq.id === qId);
-      if (q) {
-        renumberedQuestions.set(qId, { ...q, number: visualNumber++ });
-      }
+      if (q) renumbered.set(qId, { ...q, number: visualNumber++ });
     }
   }
-  // Unassigned questions continue numbering
   for (const q of questions) {
-    if (!renumberedQuestions.has(q.id)) {
-      renumberedQuestions.set(q.id, { ...q, number: visualNumber++ });
-    }
+    if (!renumbered.has(q.id)) renumbered.set(q.id, { ...q, number: visualNumber++ });
   }
 
   for (const sec of sections) {
-    // Section header layout:
-    //   Line 1: "Section A" — CENTERED
-    //   Line 2: "• Multiple Choice Questions (answer any 4)" on LEFT,
-    //           "40 × 0.5 = 20" on RIGHT
     const instruction = sec.instruction
       ? `<span class="ex-sec-instr">• ${escapeHtml(sec.instruction)}</span>`
       : '<span class="ex-sec-instr">&nbsp;</span>';
     const carriage = buildMarksCarriage(sec);
-    const carriageHtml = carriage
-      ? `<span class="ex-sec-marks">${escapeHtml(carriage)}</span>`
-      : "";
+    const carriageHtml = carriage ? `<span class="ex-sec-marks">${escapeHtml(carriage)}</span>` : "";
 
     parts.push(
       `<div class="ex-section">` +
@@ -221,230 +207,146 @@ function sectionsBlock(worksheet: Worksheet, mode: AnswerMode): string {
         `</div>`,
     );
 
-    // Render questions assigned to this section (with renumbered numbers)
     if (sec.questionIds.length > 0) {
       for (const qId of sec.questionIds) {
-        const q = renumberedQuestions.get(qId);
-        if (q) {
-          parts.push(examQuestionBlock(q, mode));
-          assignedIds.add(qId);
-        }
+        const q = renumbered.get(qId);
+        if (q) { parts.push(examQuestionBlock(q, mode, marksLeft)); assignedIds.add(qId); }
       }
     }
-
     parts.push(`</div>`);
   }
 
-  // Render any unassigned questions (not in a section)
   const unassigned = questions.filter((q) => !assignedIds.has(q.id));
   for (const q of unassigned) {
-    const rq = renumberedQuestions.get(q.id) || q;
-    parts.push(examQuestionBlock(rq, mode));
+    const rq = renumbered.get(q.id) || q;
+    parts.push(examQuestionBlock(rq, mode, marksLeft));
   }
-
   return parts.join("\n");
 }
 
 export function buildExamHtml(input: ExamTemplateInput): string {
-  const { worksheet, headerImage } = input;
+  const { worksheet, headerImage, preset, marksPosition } = input;
   const mode = worksheet.answerMode;
+  const p = preset ?? { bodyFontSize: "10.5pt", headingFontSize: "12pt", metaFontSize: "11.5pt", gapQuestion: "3.5mm", gapOption: "1.2mm", lineHeight: "1.3" } as PrintPreset;
+  const marksLeft = marksPosition === "left";
 
   const header = examHeader(worksheet, headerImage);
   const instructions = instructionsBlock(worksheet);
-  const questions = sectionsBlock(worksheet, mode);
+  const questions = sectionsBlock(worksheet, mode, marksLeft);
 
-  const answerKey =
-    mode === "answerKey" && worksheet.questions.length > 0
-      ? `<div class="ex-answer-key"><div class="ex-ak-title">ANSWER KEY</div>${worksheet.questions
-          .map((q) => {
-            let ans = "—";
-            if (q.type === "mcq" || q.type === "trueFalse") {
-              const c = q.options.find((o) => o.correct);
-              ans = c ? c.label : "—";
-            } else if (q.answer.trim()) {
-              ans = q.answer.trim().slice(0, 30);
-            }
-            return `<span class="ex-ak-item"><b>${q.number}.</b> ${escapeHtml(ans)}</span>`;
-          })
-          .join(" &nbsp; ")}</div>`
-      : "";
+  const answerKey = mode === "answerKey" && worksheet.questions.length > 0
+    ? `<div class="ex-answer-key"><div class="ex-ak-title">ANSWER KEY</div>${worksheet.questions
+        .map((q) => {
+          let ans = "—";
+          if (q.type === "mcq" || q.type === "trueFalse") {
+            const c = q.options.find((o) => o.correct); ans = c ? c.label : "—";
+          } else if (q.answer.trim()) ans = q.answer.trim().slice(0, 30);
+          return `<span class="ex-ak-item"><b>${q.number}.</b> ${escapeHtml(ans)}</span>`;
+        }).join(" &nbsp; ")}</div>`
+    : "";
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Examination Paper</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
   <style>
-    /* ===== A4 page setup =====
-       Top margin reduced to 8mm so questions start on page 1.
-       Bottom margin is 20mm to accommodate the PDF engine footer. */
-    @page {
-      size: A4 portrait;
-      margin: 8mm 18mm 20mm 18mm;
+    /* ===== Self-hosted fonts (no Google Fonts link) =====
+       Tinos is served from /public/fonts/ in the preview.
+       The PDF renderer replaces /fonts/ with file:// URLs.
+       Fallback to system fonts for Indic scripts. */
+    @font-face {
+      font-family: 'Tinos';
+      src: url('/fonts/Tinos-Regular.ttf') format('truetype');
+      font-weight: 400; font-style: normal; font-display: block;
     }
-    * { box-sizing: border-box; }
+    @font-face {
+      font-family: 'Tinos';
+      src: url('/fonts/Tinos-Bold.ttf') format('truetype');
+      font-weight: 700; font-style: normal; font-display: block;
+    }
+    @font-face {
+      font-family: 'Tinos';
+      src: url('/fonts/Tinos-Italic.ttf') format('truetype');
+      font-weight: 400; font-style: italic; font-display: block;
+    }
+
+    /* ===== Page geometry (single source of truth) ===== */
+    ${PAGE_CSS}
+
+    /* ===== Spacing tokens (controlled by presets) ===== */
+    :root {
+      --fs-body: ${p.bodyFontSize};
+      --fs-heading: ${p.headingFontSize};
+      --fs-meta: ${p.metaFontSize};
+      --gap-q: ${p.gapQuestion};
+      --gap-opt: ${p.gapOption};
+      --lh: ${p.lineHeight};
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      margin: 0;
-      padding: 0;
-      background: #ffffff;
-      color: #000000;
-      font-family: 'Tinos', 'Times New Roman', Times, Georgia, serif;
-      font-size: 11.5pt;
-      line-height: 1.5;
+      background: #fff;
+      color: #000;
+      font-family: 'Tinos', 'Noto Serif', 'Noto Serif Devanagari', 'Noto Serif Kannada', 'Times New Roman', Times, Georgia, serif;
+      font-size: var(--fs-body);
+      line-height: var(--lh);
       -webkit-font-smoothing: antialiased;
     }
 
-    /* ===== Header (page 1 only) ===== */
-    .ex-header { text-align: center; margin-bottom: 3mm; break-after: avoid; page-break-after: avoid; }
-    .ex-banner-wrap { width: 100%; text-align: center; margin-bottom: 2mm; }
-    .ex-banner { max-width: 100%; max-height: 30mm; height: auto; object-fit: contain; }
-    .ex-title {
-      font-size: 16pt;
-      font-weight: 700;
-      text-align: center;
-      text-decoration: underline;
-      margin: 1mm 0 2mm 0;
-      letter-spacing: 0.02em;
-    }
-    .ex-meta-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1mm;
-      font-size: 12.5pt;
-    }
-    .ex-meta-table td { padding: 0.5mm 0; vertical-align: top; }
+    /* ===== Header ===== */
+    .ex-header { text-align: center; margin-bottom: 3mm; break-after: avoid; }
+    .ex-banner-wrap { margin-bottom: 2mm; }
+    .ex-banner { max-width: 100%; max-height: 28mm; height: auto; object-fit: contain; }
+    .ex-title { font-size: 16pt; font-weight: 700; text-align: center; text-decoration: underline; margin: 1mm 0 2mm; }
+    .ex-meta-table { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); }
+    .ex-meta-table td { padding: 0.4mm 0; }
     .ex-meta-left { text-align: left; width: 33%; }
     .ex-meta-center { text-align: center; width: 34%; }
     .ex-meta-right { text-align: right; width: 33%; }
 
     /* ===== Instructions ===== */
-    .ex-instructions { break-inside: avoid; page-break-inside: avoid; margin-bottom: 5mm; }
-    .ex-hr { border: 0; border-top: 1px solid #000; margin: 1mm 0; width: 100%; }
-    .ex-inst-heading {
-      font-size: 12.5pt;
-      font-weight: 700;
-      text-decoration: underline;
-      margin: 1mm 0 1.5mm 0;
-    }
-    .ex-inst-list {
-      list-style: none;
-      padding: 0;
-      margin: 0 0 0 3mm;
-    }
-    .ex-inst-list li {
-      padding-left: 4mm;
-      margin-bottom: 0.8mm;
-      font-size: 11.5pt;
-      position: relative;
-    }
-    .ex-bullet {
-      position: absolute;
-      left: 0;
-      font-size: 12pt;
-      line-height: 1;
-    }
+    .ex-instructions { break-inside: avoid; margin-bottom: 4mm; orphans: 3; widows: 3; }
+    .ex-hr { border: 0; border-top: 0.5px solid #000; margin: 1mm 0; }
+    .ex-inst-heading { font-size: var(--fs-heading); font-weight: 700; text-decoration: underline; margin: 1mm 0 1.5mm; }
+    .ex-inst-list { list-style: none; padding-left: 3mm; }
+    .ex-inst-list li { padding-left: 3mm; margin-bottom: 0.6mm; font-size: var(--fs-body); }
 
-    /* ===== Sections =====
-       NOTE: .ex-section does NOT use break-inside: avoid — if it did, the
-       entire section (header + all questions) would be pushed to the next
-       page when it doesn't fit, leaving page 1 empty after instructions.
-       Individual questions (.ex-question) already have break-inside: avoid. */
-    .ex-section { margin-bottom: 8mm; }
-    .ex-section-header {
-      border-bottom: 1px solid #000;
-      padding-bottom: 1mm;
-      margin-bottom: 3mm;
-      margin-top: 3mm;
-      text-align: left;
-      break-after: avoid;
-      page-break-after: avoid;
-    }
-    .ex-section-name {
-      font-size: 12.5pt;
-      font-weight: 700;
-      text-align: center;
-      text-decoration: underline;
-      margin-bottom: 1mm;
-    }
-    .ex-section-sub {
-      font-size: 12.5pt;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      text-align: left;
-    }
-    .ex-sec-instr { font-weight: 400; font-size: 12.5pt; text-align: left; }
-    .ex-sec-marks {
-      font-size: 12.5pt;
-      font-weight: 600;
-      white-space: nowrap;
-      text-align: right;
-    }
+    /* ===== Sections ===== */
+    .ex-section { margin-bottom: 6mm; }
+    .ex-section-header { border-bottom: 0.5px solid #000; padding-bottom: 1mm; margin-bottom: var(--gap-q); margin-top: 3mm; break-after: avoid; }
+    .ex-section-name { font-size: var(--fs-heading); font-weight: 700; text-align: center; text-decoration: underline; margin-bottom: 1mm; }
+    .ex-section-sub { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--fs-heading); }
+    .ex-sec-instr { font-weight: 400; }
+    .ex-sec-marks { font-weight: 600; white-space: nowrap; }
 
-    /* ===== Questions ===== */
-    .ex-question {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-bottom: 4mm;
-    }
-    .ex-q-text {
-      display: flex;
-      gap: 2mm;
-      align-items: baseline;
-      font-size: 11.5pt;
-      margin-bottom: 1.5mm;
-    }
-    .ex-q-num { font-weight: 700; flex: 0 0 auto; min-width: 7mm; }
-    .ex-q-body { flex: 1 1 auto; }
-    .ex-marks {
-      font-size: 11.5pt;
-      font-weight: 600;
-      margin-left: 2mm;
-      white-space: nowrap;
-    }
-    .ex-opts {
-      padding-left: 8mm;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      column-gap: 10mm;
-      row-gap: 1.5mm;
-    }
-    .ex-opt { font-size: 11.5pt; display: flex; align-items: baseline; gap: 1.5mm; }
-    .ex-opt-checkbox {
-      display: inline-block;
-      width: 3.5mm;
-      height: 3.5mm;
-      border: 1px solid #000;
-      flex-shrink: 0;
-      position: relative;
-      top: 0.5mm;
-    }
-    .ex-opt-label { font-weight: 600; }
-    .ex-tf { padding-left: 8mm; font-size: 11.5pt; }
-    .ex-tf-opt { font-weight: 500; margin-right: 12mm; display: inline-flex; align-items: baseline; gap: 1.5mm; }
-    .ex-lines { margin: 2mm 0 0 8mm; border-bottom: 1px solid #666; height: 8mm; }
-    .ex-ans { margin: 2mm 0 0 8mm; font-size: 11.5pt; }
+    /* ===== Questions (CSS grid: number | text | marks) ===== */
+    .ex-question { break-inside: avoid; margin-bottom: var(--gap-q); align-items: baseline; }
+    .ex-q-num { font-weight: 700; }
+    .ex-q-body { font-weight: 400; }
+    .ex-q-marks { font-weight: 600; white-space: nowrap; text-align: right; }
+    .ex-q-marks--left { text-align: left; }
+
+    /* ===== MCQ options (2-col grid, auto 1-col for long options) ===== */
+    .ex-opts { padding-left: 9mm; display: grid; column-gap: 10mm; row-gap: var(--gap-opt); margin-top: 0.5mm; }
+    .ex-opt { font-size: var(--fs-body); display: flex; align-items: baseline; gap: 1.5mm; }
+    .ex-opt-label { font-weight: 700; min-width: 5mm; }
+    .ex-opt-text { font-weight: 400; }
+    /* Hanging indent for wrapped option text */
+    .ex-opt-text { padding-left: 0; text-indent: 0; }
+
+    /* ===== True/False ===== */
+    .ex-tf { padding-left: 9mm; font-size: var(--fs-body); margin-top: 0.5mm; }
+    .ex-tf-opt { font-weight: 400; margin-right: 12mm; }
+
+    /* ===== Descriptive ruled lines ===== */
+    .ex-lines { margin: 1mm 0 0 9mm; border-bottom: 0.5px solid #999; height: 7mm; }
+    .ex-ans { margin: 1mm 0 0 9mm; font-size: var(--fs-body); }
 
     /* ===== Answer Key ===== */
-    .ex-answer-key {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-top: 6mm;
-      padding-top: 3mm;
-      border-top: 1.5px solid #000;
-    }
-    .ex-ak-title {
-      text-align: center;
-      font-size: 13pt;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      margin-bottom: 3mm;
-    }
-    .ex-ak-item { display: inline-block; margin-right: 8mm; font-size: 11.5pt; }
+    .ex-answer-key { break-inside: avoid; margin-top: 5mm; padding-top: 2mm; border-top: 0.5px solid #000; }
+    .ex-ak-title { text-align: center; font-size: var(--fs-heading); font-weight: 700; letter-spacing: 0.15em; margin-bottom: 2mm; }
+    .ex-ak-item { display: inline-block; margin-right: 6mm; font-size: var(--fs-body); }
   </style>
 </head>
 <body>
@@ -456,25 +358,19 @@ export function buildExamHtml(input: ExamTemplateInput): string {
 </html>`;
 }
 
-/** Build the footer template HTML for the PDF engine (Puppeteer/Playwright).
- *  Uses [pageNumber] and [totalPages] placeholders. */
+/** Footer template for the PDF engine (exact left/right alignment with body) */
 export function buildExamFooterTemplate(worksheet: Worksheet): string {
   const code = buildFooterCode(worksheet);
-  // The footer template is restricted HTML (no external resources, inline CSS only).
-  // Margin must match the page bottom margin (20mm).
-  return `<div style="width: 100%; font-family: 'Times New Roman', serif; font-size: 9pt; color: #333; display: flex; justify-content: space-between; padding: 0 18mm 6mm 18mm; border-top: 1px solid #999; margin: 0 18mm;">
+  const pl = FOOTER_PADDING_LEFT;
+  const pr = FOOTER_PADDING_RIGHT;
+  return `<div style="width:100%;box-sizing:border-box;padding:0 ${pr} 0 ${pl};font-size:8.5px;font-family:'Tinos','Times New Roman',serif;color:#333;display:flex;justify-content:space-between;align-items:center;border-top:0.5px solid #666;padding-top:2mm;">
     <span>${escapeHtml(code)}</span>
     <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
   </div>`;
 }
 
-/** Build a safe filename for the exam PDF. */
 export function buildExamFilename(worksheet: Worksheet): string {
   const m = worksheet.examMeta;
-  const slug = (s: string) =>
-    s.trim().replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "Untitled";
-  const grade = slug(m.grade);
-  const subject = slug(m.subject || worksheet.subject);
-  const title = slug(m.examTitle);
-  return `${title}_${subject}_Grade-${grade || "X"}.pdf`;
+  const slug = (s: string) => s.trim().replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "Untitled";
+  return `${slug(m.examTitle)}_${slug(m.subject || worksheet.subject)}_Grade-${slug(m.grade) || "X"}.pdf`;
 }

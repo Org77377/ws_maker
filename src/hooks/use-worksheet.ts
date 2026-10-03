@@ -97,6 +97,13 @@ interface WorksheetState {
   loadSample: () => void;
   loadExamSample: () => void;
   reset: () => void;
+  // Print settings
+  printPreset: string;
+  marksPosition: "left" | "right";
+  maxPages: number;
+  setPrintPreset: (v: string) => void;
+  setMarksPosition: (v: "left" | "right") => void;
+  setMaxPages: (v: number) => void;
 
   getWorksheet: () => Worksheet;
 }
@@ -139,6 +146,9 @@ const DEFAULTS = {
   hasParsed: false,
   isGenerating: false,
   lastFocusedQuestionId: null as string | null,
+  printPreset: "standard",
+  marksPosition: "right" as "left" | "right",
+  maxPages: 0,
 };
 
 export const useWorksheetStore = create<WorksheetState>()(
@@ -462,6 +472,9 @@ export const useWorksheetStore = create<WorksheetState>()(
         }),
 
       setLastFocusedQuestionId: (id) => set({ lastFocusedQuestionId: id }),
+      setPrintPreset: (v) => set({ printPreset: v }),
+      setMarksPosition: (v) => set({ marksPosition: v }),
+      setMaxPages: (v) => set({ maxPages: v }),
 
       setGenerating: (v) => set({ isGenerating: v }),
 
@@ -603,6 +616,9 @@ D5. Explain the difference between hardware and software with examples.
         sectionInputs: s.sectionInputs,
         examMeta: s.examMeta,
         hasParsed: s.hasParsed,
+        printPreset: s.printPreset,
+        marksPosition: s.marksPosition,
+        maxPages: s.maxPages,
       }),
     },
   ),

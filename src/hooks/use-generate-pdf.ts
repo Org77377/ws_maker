@@ -27,7 +27,12 @@ export function useGeneratePdf() {
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ worksheet }),
+          body: JSON.stringify({
+            worksheet,
+            preset: useWorksheetStore.getState().printPreset,
+            marksPosition: useWorksheetStore.getState().marksPosition,
+            maxPages: useWorksheetStore.getState().maxPages || undefined,
+          }),
         });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
